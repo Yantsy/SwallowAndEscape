@@ -1,0 +1,79 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_video.h>
+#include <cstddef>
+#include <cstdlib>
+#include <iostream>
+
+int main() {
+
+  // Initialize SDL video subsystem
+  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
+    return 1;
+  }
+  // Create an application window with the following settings:
+  SDL_Window *win1 =
+      SDL_CreateWindow("SwallowAndEscape", SDL_WINDOWPOS_CENTERED,
+                       SDL_WINDOWPOS_CENTERED, 680, 480,
+                       SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE |
+                           SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
+  // Check that the window was successfully created
+  if (win1 == nullptr) {
+    std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
+    return 1;
+  }
+  // create a renderer
+  SDL_Surface *ws1 = SDL_GetWindowSurface(win1);
+
+  SDL_FillRect(ws1, NULL, SDL_MapRGB(ws1->format, 255, 255, 255));
+  // load a bmp image as surface
+
+  SDL_Surface *is1 =
+      SDL_LoadBMP("/home/yantsy/Documents/SwallowAndEscape/assets/logo.bmp");
+  if (is1 == nullptr) {
+    std::cerr << "SDL_LoadBMP Error: " << SDL_GetError() << std::endl;
+    return 1;
+  }
+
+  int ws1w = ws1->w;
+  int ws1h = ws1->h;
+
+  int is1w = is1->w;
+  int is1h = is1->h;
+
+  SDL_Rect logo;
+  logo.x = (ws1w - is1w) / 2;
+  logo.y = (ws1h - is1h) / 2;
+  logo.w = is1w;
+  logo.h = is1h;
+
+  // blit the image surface to the window surface
+  SDL_BlitSurface(is1, NULL, ws1, &logo);
+  // update the window surface
+  SDL_UpdateWindowSurface(win1);
+
+  bool running = true;
+
+  SDL_Event e;
+
+  while (running) {
+
+    while (SDL_PollEvent(&e) != 0) {
+      switch (e.type) {
+      case SDL_QUIT:
+        running = false;
+        break;
+      }
+      SDL_Delay(10);
+    }
+  }
+  SDL_DestroyWindow(win1);
+
+  SDL_FreeSurface(is1);
+  SDL_FreeSurface(ws1);
+
+  SDL_Quit();
+
+  return 0;
+}

@@ -1,0 +1,3 @@
+/home/yantsy/Documents/SwallowAndEscape/build/CMakeFiles/SwallowAndEscape.dir
+/home/yantsy/Documents/SwallowAndEscape/build/CMakeFiles/edit_cache.dir
+/home/yantsy/Documents/SwallowAndEscape/build/CMakeFiles/rebuild_cache.dir
