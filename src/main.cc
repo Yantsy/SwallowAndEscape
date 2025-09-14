@@ -5,6 +5,7 @@
 // #include <cstddef>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 int main() {
 
@@ -44,11 +45,16 @@ int main() {
   int fx = rand() % 67 * 10;
   int fy = rand() % 48 * 10;
   // create the rectangles
+  std::vector<SDL_Rect> segments;
   SDL_Rect block = {x, y, 15, 15};
+  segments.push_back(block);
   SDL_Rect food = {fx, fy, 10, 10};
   // event handler
   SDL_Event e;
 
+  // create the snake body
+
+  // control variable for the game loop
   bool quit = false;
 
   int speed = 30;
@@ -105,10 +111,14 @@ int main() {
       }
     }
 
-    // update the position of the snake head
+    // update the position of the snake's head and body
+
     block.x += pdir * speed / 10;
     block.y += ndir * speed / 10;
-    // boundary check
+
+    segments.insert(segments.begin(), block);
+
+    // check for collision with the boundary
     if (block.x < 0)
       block.x = 0;
     if (block.x > 665)
@@ -117,23 +127,45 @@ int main() {
       block.y = 0;
     if (block.y > 465)
       block.y = 465;
-    // render and present
-    SDL_SetRenderDrawColor(renderer01, 114, 159, 207, 255);
-    SDL_RenderClear(renderer01);
 
-    SDL_SetRenderDrawColor(renderer01, 76, 44, 255, 0);
-    SDL_RenderFillRect(renderer01, &block);
-
-    SDL_SetRenderDrawColor(renderer01, 255, 0, 0, 135);
-    SDL_RenderFillRect(renderer01, &food);
-
+    // check for collision with food
     if (std::abs(block.x - food.x) < 15 && std::abs(block.y - food.y) < 15) {
+
       fx = rand() % 67 * 10;
       fy = rand() % 48 * 10;
       food.x = fx;
       food.y = fy;
+
     } else {
+      if (!segments.empty()) {
+        segments.pop_back();
+      } else {
+      }
     }
+
+    // check for collision with the boundary of the snake itself
+    for (int seg; seg < segments.size(); seg++) {
+      if (std::abs(block.x - segments[seg].x) < 15 &&
+          std::abs(block.y - segments[seg].y) < 15) {
+        quit = true;
+      }
+    }
+
+    // render and present
+    SDL_SetRenderDrawColor(renderer01, 114, 159, 207, 255);
+    SDL_RenderClear(renderer01);
+
+    SDL_SetRenderDrawColor(renderer01, 76, 44, 255, 255);
+    SDL_RenderFillRect(renderer01, &block);
+
+    for (auto &segsheet : segments) {
+      SDL_SetRenderDrawColor(renderer01, 76, 44, 255, 255);
+      SDL_RenderFillRect(renderer01, &segsheet);
+    };
+
+    SDL_SetRenderDrawColor(renderer01, 255, 0, 0, 135);
+    SDL_RenderFillRect(renderer01, &food);
+
     SDL_RenderPresent(renderer01);
 
     SDL_Delay(1000 / 50);

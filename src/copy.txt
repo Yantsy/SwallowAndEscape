@@ -79,3 +79,27 @@ int main() {
 
   
 }
+/*int p1 = ((block.x + 15) - (food.x + 10)) / 2;
+    int p2 = ((block.y + 15) - (food.y + 10)) / 2;*/
+
+    /*if (p1 < 0) {
+        body = {block.x - 15, block.y, 15, 15};
+        segments.push_back(body);
+      }
+      if (p1 > 0) {
+        body = {block.x + 15, block.y, 15, 15};
+        segments.push_back(body);
+      }
+      if (p2 < 0) {
+        body = {block.x, block.y - 15, 15, 15};
+        segments.push_back(body);
+      }
+      if (p2 > 0) {
+        body = {block.x, block.y + 15, 15, 15};
+        segments.push_back(body);
+      } else {
+      }
+      for (auto &segsheet : segments) {
+        SDL_SetRenderDrawColor(renderer01, 0, 0, 0, 255);
+        SDL_RenderFillRect(renderer01, &segsheet);
+      }*/
