@@ -48,7 +48,7 @@ int main() {
   std::vector<SDL_Rect> segments;
   SDL_Rect block = {x, y, 15, 15};
   segments.push_back(block);
-  SDL_Rect food = {fx, fy, 10, 10};
+  SDL_Rect food = {fx, fy, 14, 14};
   // event handler
   SDL_Event e;
 
@@ -147,28 +147,27 @@ int main() {
     for (int seg; seg < segments.size(); seg++) {
       if (std::abs(block.x - segments[seg].x) < 15 &&
           std::abs(block.y - segments[seg].y) < 15) {
-        quit = true;
       }
     }
 
     // render and present
-    SDL_SetRenderDrawColor(renderer01, 114, 159, 207, 255);
+    SDL_SetRenderDrawColor(renderer01, 255, 248, 220, 255);
     SDL_RenderClear(renderer01);
 
-    SDL_SetRenderDrawColor(renderer01, 76, 44, 255, 255);
+    SDL_SetRenderDrawColor(renderer01, 34, 139, 34, 255);
     SDL_RenderFillRect(renderer01, &block);
 
     for (auto &segsheet : segments) {
-      SDL_SetRenderDrawColor(renderer01, 76, 44, 255, 255);
+      SDL_SetRenderDrawColor(renderer01, 60, 179, 173, 255);
       SDL_RenderFillRect(renderer01, &segsheet);
     };
 
-    SDL_SetRenderDrawColor(renderer01, 255, 0, 0, 135);
+    SDL_SetRenderDrawColor(renderer01, 220, 20, 60, 135);
     SDL_RenderFillRect(renderer01, &food);
 
     SDL_RenderPresent(renderer01);
 
-    SDL_Delay(1000 / 50);
+    SDL_Delay(1000 / 60);
   }
 
   SDL_DestroyRenderer(renderer01);
