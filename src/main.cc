@@ -1,4 +1,7 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_gamecontroller.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
@@ -10,10 +13,25 @@
 int main() {
 
   // initialize SDL video subsystem
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+  if (SDL_Init(SDL_INIT_VIDEO) != 0 && SDL_Init(SDL_INIT_AUDIO) != 0) {
     std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
     return 1;
   }
+  // initialize SDL_mixer audio subsystem
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) != 0) {
+    std::cerr << "Mix_OpenAudio Error: " << Mix_GetError() << std::endl;
+    return 1;
+  }
+  // initialize the SDL game controller subsystem
+  if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) {
+    std::cerr << "SDL_InitSubSystem Error: " << SDL_GetError() << std::endl;
+    return 1;
+  }
+  // initialize the image loading subsystem
+  /*if (IMG_Init(IMG_INIT_PNG  | IMG_INIT_JPG) != 0) {
+    std::cerr << "IMG_Init Error: " << IMG_GetError() << std::endl;
+    return 1;
+  }*/
   // Create a window
   SDL_Window *win1 =
       SDL_CreateWindow("SwallowAndEscape", SDL_WINDOWPOS_CENTERED,
@@ -42,6 +60,7 @@ int main() {
   int pdir = 1;
   int ndir = 0;
   // food position
+
   int fx = rand() % 67 * 10;
   int fy = rand() % 48 * 10;
   // create the rectangles
@@ -49,10 +68,31 @@ int main() {
   SDL_Rect block = {x, y, 15, 15};
   segments.push_back(block);
   SDL_Rect food = {fx, fy, 14, 14};
+
+  // create the map
+  int ww, wh;
+  SDL_GetWindowSize(win1, &ww, &wh);
+  SDL_Rect map1 = {
+      (ww / 2) - 300,
+      (wh / 2) - 200,
+      600,
+      400,
+  };
+  SDL_Rect map2 = {
+      (ww / 2) - 285,
+      (wh / 2) - 185,
+      570,
+      370,
+  };
   // event handler
   SDL_Event e;
 
-  // create the snake body
+  // bgm
+  Mix_Music *bgm = Mix_LoadMUS("../assets/99._Red!.mp3");
+  if (bgm == nullptr) {
+    std::cerr << "Mix_LoadMUS Error: " << Mix_GetError() << std::endl;
+  }
+  Mix_PlayMusic(bgm, -1);
 
   // control variable for the game loop
   bool quit = false;
@@ -119,22 +159,31 @@ int main() {
     segments.insert(segments.begin(), block);
 
     // check for collision with the boundary
-    if (block.x < 0)
-      block.x = 0;
-    if (block.x > 665)
-      block.x = 665;
-    if (block.y < 0)
-      block.y = 0;
-    if (block.y > 465)
-      block.y = 465;
+    if (block.x < 55)
+      block.x = 55;
+    if (block.x > 610)
+      block.x = 610;
+    if (block.y < 55)
+      block.y = 55;
+    if (block.y > 410)
+      block.y = 410;
 
     // check for collision with food
-    if (std::abs(block.x - food.x) < 15 && std::abs(block.y - food.y) < 15) {
+    if (std::abs(((block.x + 15) / 2) - ((food.x + 14) / 2)) < 5 &&
+        std::abs(((block.y + 15) / 2) - ((food.y + 14) / 2)) < 5) {
 
       fx = rand() % 67 * 10;
       fy = rand() % 48 * 10;
       food.x = fx;
       food.y = fy;
+      if (food.x < 55)
+        food.x = 55;
+      if (food.x > 610)
+        food.x = 610;
+      if (food.y < 55)
+        food.y = 55;
+      if (food.y > 410)
+        food.y = 410;
 
     } else {
       if (!segments.empty()) {
@@ -154,13 +203,19 @@ int main() {
     SDL_SetRenderDrawColor(renderer01, 255, 248, 220, 255);
     SDL_RenderClear(renderer01);
 
-    SDL_SetRenderDrawColor(renderer01, 34, 139, 34, 255);
-    SDL_RenderFillRect(renderer01, &block);
+    SDL_SetRenderDrawColor(renderer01, 188, 143, 143, 255);
+    SDL_RenderFillRect(renderer01, &map1);
+
+    SDL_SetRenderDrawColor(renderer01, 255, 248, 220, 255);
+    SDL_RenderFillRect(renderer01, &map2);
 
     for (auto &segsheet : segments) {
       SDL_SetRenderDrawColor(renderer01, 60, 179, 173, 255);
       SDL_RenderFillRect(renderer01, &segsheet);
     };
+
+    SDL_SetRenderDrawColor(renderer01, 0, 179, 173, 255);
+    SDL_RenderFillRect(renderer01, &block);
 
     SDL_SetRenderDrawColor(renderer01, 220, 20, 60, 135);
     SDL_RenderFillRect(renderer01, &food);
