@@ -28,7 +28,7 @@ int main() {
     return 1;
   }
   // initialize the image loading subsystem
-  /*if (IMG_Init(IMG_INIT_PNG  | IMG_INIT_JPG) != 0) {
+  /*if (IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) != 0) {
     std::cerr << "IMG_Init Error: " << IMG_GetError() << std::endl;
     return 1;
   }*/
@@ -59,7 +59,13 @@ int main() {
   // head direction
   int pdir = 1;
   int ndir = 0;
-  // food position
+  // food texture
+
+  SDL_Surface *foodsuf = IMG_Load("../assets/food.png");
+
+  SDL_Texture *foodtex = SDL_CreateTextureFromSurface(renderer01, foodsuf);
+
+  SDL_FreeSurface(foodsuf);
 
   int fx = rand() % 67 * 10;
   int fy = rand() % 48 * 10;
@@ -200,25 +206,26 @@ int main() {
     }
 
     // render and present
-    SDL_SetRenderDrawColor(renderer01, 255, 248, 220, 255);
+    SDL_SetRenderDrawColor(renderer01, 255, 222, 173, 255);
     SDL_RenderClear(renderer01);
 
     SDL_SetRenderDrawColor(renderer01, 188, 143, 143, 255);
     SDL_RenderFillRect(renderer01, &map1);
 
-    SDL_SetRenderDrawColor(renderer01, 255, 248, 220, 255);
+    SDL_SetRenderDrawColor(renderer01, 255, 222, 173, 255);
     SDL_RenderFillRect(renderer01, &map2);
 
     for (auto &segsheet : segments) {
-      SDL_SetRenderDrawColor(renderer01, 60, 179, 173, 255);
+      if (&segsheet == &segments[0]) {
+        SDL_SetRenderDrawColor(renderer01, 46, 139, 87, 255);
+        SDL_RenderFillRect(renderer01, &block);
+        continue;
+      };
+      SDL_SetRenderDrawColor(renderer01, 173, 255, 47, 200);
       SDL_RenderFillRect(renderer01, &segsheet);
     };
 
-    SDL_SetRenderDrawColor(renderer01, 0, 179, 173, 255);
-    SDL_RenderFillRect(renderer01, &block);
-
-    SDL_SetRenderDrawColor(renderer01, 220, 20, 60, 135);
-    SDL_RenderFillRect(renderer01, &food);
+    SDL_RenderCopy(renderer01, foodtex, NULL, &food);
 
     SDL_RenderPresent(renderer01);
 
