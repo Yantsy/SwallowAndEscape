@@ -27,11 +27,7 @@ int main() {
     std::cerr << "SDL_InitSubSystem Error: " << SDL_GetError() << std::endl;
     return 1;
   }
-  // initialize the image loading subsystem
-  /*if (IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) != 0) {
-    std::cerr << "IMG_Init Error: " << IMG_GetError() << std::endl;
-    return 1;
-  }*/
+
   // Create a window
   SDL_Window *win1 =
       SDL_CreateWindow("SwallowAndEscape", SDL_WINDOWPOS_CENTERED,
@@ -73,7 +69,7 @@ int main() {
   std::vector<SDL_Rect> segments;
   SDL_Rect block = {x, y, 15, 15};
   segments.push_back(block);
-  SDL_Rect food = {fx, fy, 14, 14};
+  SDL_Rect food = {fx, fy, 17, 17};
 
   // create the map
   int ww, wh;
@@ -99,6 +95,28 @@ int main() {
     std::cerr << "Mix_LoadMUS Error: " << Mix_GetError() << std::endl;
   }
   Mix_PlayMusic(bgm, -1);
+
+  // gamecontroler
+
+  SDL_GameController *controller = SDL_GameControllerOpen(0);
+
+  // controller button
+  if (controller == nullptr) {
+    std::cerr << "SDL_GameControllerOpen Error: " << SDL_GetError()
+              << std::endl;
+  }
+
+  // check and start the controller rumble
+  if (controller != nullptr) {
+    if (SDL_GameControllerHasRumble(controller) != false) {
+      SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
+    }
+  } else {
+    std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
+              << std::endl;
+  };
+
+  SDL_GameControllerAddMappingsFromFile("../assets/gamecontrollerdb.txt");
 
   // control variable for the game loop
   bool quit = false;
@@ -154,6 +172,34 @@ int main() {
           break;
         }
       }
+
+      case (SDL_CONTROLLERBUTTONDOWN): {
+        switch (e.cbutton.button) {
+
+        case SDL_CONTROLLER_BUTTON_START:
+          ndir = 0;
+          pdir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_UP:
+          ndir = -1;
+          pdir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+          ndir = 1;
+          pdir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+          pdir = -1;
+          ndir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+          pdir = 1;
+          ndir = 0;
+          break;
+        default:
+          break;
+        }
+      }
       }
     }
 
@@ -177,6 +223,15 @@ int main() {
     // check for collision with food
     if (std::abs(((block.x + 15) / 2) - ((food.x + 14) / 2)) < 5 &&
         std::abs(((block.y + 15) / 2) - ((food.y + 14) / 2)) < 5) {
+      // check and start the controller rumble
+      if (controller != nullptr) {
+        if (SDL_GameControllerHasRumble(controller) != false) {
+          SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
+        }
+      } else {
+        std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
+                  << std::endl;
+      };
 
       fx = rand() % 67 * 10;
       fy = rand() % 48 * 10;
@@ -206,22 +261,22 @@ int main() {
     }
 
     // render and present
-    SDL_SetRenderDrawColor(renderer01, 255, 222, 173, 255);
+    SDL_SetRenderDrawColor(renderer01, 165, 222, 229, 255);
     SDL_RenderClear(renderer01);
 
-    SDL_SetRenderDrawColor(renderer01, 188, 143, 143, 255);
+    SDL_SetRenderDrawColor(renderer01, 254, 253, 202, 200);
     SDL_RenderFillRect(renderer01, &map1);
 
-    SDL_SetRenderDrawColor(renderer01, 255, 222, 173, 255);
+    SDL_SetRenderDrawColor(renderer01, 224, 249, 181, 255);
     SDL_RenderFillRect(renderer01, &map2);
 
     for (auto &segsheet : segments) {
       if (&segsheet == &segments[0]) {
-        SDL_SetRenderDrawColor(renderer01, 46, 139, 87, 255);
+        SDL_SetRenderDrawColor(renderer01, 255, 69, 69, 255);
         SDL_RenderFillRect(renderer01, &block);
         continue;
       };
-      SDL_SetRenderDrawColor(renderer01, 173, 255, 47, 200);
+      SDL_SetRenderDrawColor(renderer01, 255, 207, 223, 255);
       SDL_RenderFillRect(renderer01, &segsheet);
     };
 
@@ -231,7 +286,7 @@ int main() {
 
     SDL_Delay(1000 / 60);
   }
-
+  SDL_GameControllerClose(controller);
   SDL_DestroyRenderer(renderer01);
   SDL_DestroyWindow(win1);
 
