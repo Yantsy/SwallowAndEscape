@@ -12,6 +12,8 @@
 
 int main() {
 
+  // 初始化SDL2的各个子系统
+
   // initialize SDL video subsystem
   if (SDL_Init(SDL_INIT_VIDEO) != 0 && SDL_Init(SDL_INIT_AUDIO) != 0) {
     std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
@@ -28,16 +30,20 @@ int main() {
     return 1;
   }
 
+  // 创建窗口、渲染器（renderer/suface/texture）、事件队列、蛇和食物、地图和控制器等事物
+
   // Create a window
   SDL_Window *win1 =
       SDL_CreateWindow("SwallowAndEscape", SDL_WINDOWPOS_CENTERED,
-                       SDL_WINDOWPOS_CENTERED, 680, 480,
+                       SDL_WINDOWPOS_CENTERED, 1920, 1080,
                        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE |
                            SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
   if (win1 == nullptr) {
     std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
     return 1;
   }
+  int ww, wh;
+  SDL_GetWindowSize(win1, &ww, &wh);
 
   // create the renderer for the window
 
@@ -47,11 +53,29 @@ int main() {
     std::cerr << "SDL_CreateRenderer Error:" << SDL_GetError() << std::endl;
   }
 
+  // create the map
+
+  int thickness = 20;
+  ;
+  SDL_Rect map1 = {
+      ww / 8,
+      wh / 16,
+      ww * 3 / 4,
+      wh * 3 / 4,
+  };
+
+  SDL_Rect map2 = {
+      map1.x + thickness,
+      map1.y + thickness,
+      map1.w - thickness * 2,
+      map1.h - thickness * 2,
+  };
+
   // create the snake head and food
 
   // head position
-  int x = 10;
-  int y = 10;
+  int x = ww / 2;
+  int y = wh / 2;
   // head direction
   int pdir = 1;
   int ndir = 0;
@@ -63,29 +87,13 @@ int main() {
 
   SDL_FreeSurface(foodsuf);
 
-  int fx = rand() % 67 * 10;
-  int fy = rand() % 48 * 10;
+  int fx = (rand() % (map2.w - map2.x)) + map2.x;
+  int fy = (rand() % (map2.h - map2.y)) + map2.y;
   // create the rectangles
   std::vector<SDL_Rect> segments;
   SDL_Rect block = {x, y, 15, 15};
   segments.push_back(block);
   SDL_Rect food = {fx, fy, 17, 17};
-
-  // create the map
-  int ww, wh;
-  SDL_GetWindowSize(win1, &ww, &wh);
-  SDL_Rect map1 = {
-      (ww / 2) - 300,
-      (wh / 2) - 200,
-      600,
-      400,
-  };
-  SDL_Rect map2 = {
-      (ww / 2) - 285,
-      (wh / 2) - 185,
-      570,
-      370,
-  };
   // event handler
   SDL_Event e;
 
@@ -99,29 +107,41 @@ int main() {
   // gamecontroler
 
   SDL_GameController *controller = SDL_GameControllerOpen(0);
+  int counter;
+  // open the controller
 
-  // controller button
-  if (controller == nullptr) {
-    std::cerr << "SDL_GameControllerOpen Error: " << SDL_GetError()
-              << std::endl;
+  for (counter = 0; counter < 1; counter++) {
+    if (controller == nullptr) {
+      std::cerr << "SDL_GameControllerOpen Error: " << SDL_GetError()
+                << std::endl;
+    }
   }
 
   // check and start the controller rumble
-  if (controller != nullptr) {
-    if (SDL_GameControllerHasRumble(controller) != false) {
-      SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
-    }
-  } else {
-    std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
-              << std::endl;
-  };
+  for (counter = 0; counter < 1; counter++) {
+    if (controller != nullptr) {
 
+      if (SDL_GameControllerHasRumble(controller) == false) {
+
+        std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
+                  << std::endl;
+
+      } else {
+
+        SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
+      }
+    };
+  }
+
+  // map the controller
   SDL_GameControllerAddMappingsFromFile("../assets/gamecontrollerdb.txt");
+
+  // 设置游戏主循环以及在玩家操作下，上述事物会如何变化
 
   // control variable for the game loop
   bool quit = false;
 
-  int speed = 30;
+  int speed = block.w / 2;
 
   // game loop
   while (!quit) {
@@ -205,46 +225,33 @@ int main() {
 
     // update the position of the snake's head and body
 
-    block.x += pdir * speed / 10;
-    block.y += ndir * speed / 10;
+    block.x += pdir * speed;
+    block.y += ndir * speed;
 
     segments.insert(segments.begin(), block);
 
     // check for collision with the boundary
-    if (block.x < 55)
-      block.x = 55;
-    if (block.x > 610)
-      block.x = 610;
-    if (block.y < 55)
-      block.y = 55;
-    if (block.y > 410)
-      block.y = 410;
+    if (block.x < map2.x)
+      block.x = map2.x;
+    if (block.x > map2.x + map2.w - block.w)
+      block.x = map2.x + map2.w - block.w;
+    if (block.y < map2.y)
+      block.y = map2.y;
+    if (block.y > map2.y + map2.h - block.w)
+      block.y = map2.y + map2.h - block.w;
 
     // check for collision with food
     if (std::abs(((block.x + 15) / 2) - ((food.x + 14) / 2)) < 5 &&
         std::abs(((block.y + 15) / 2) - ((food.y + 14) / 2)) < 5) {
       // check and start the controller rumble
       if (controller != nullptr) {
-        if (SDL_GameControllerHasRumble(controller) != false) {
-          SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
-        }
+        SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
       } else {
-        std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
-                  << std::endl;
       };
-
-      fx = rand() % 67 * 10;
-      fy = rand() % 48 * 10;
+      fx = (rand() % (map2.w - map2.x)) + map2.x;
+      fy = (rand() % (map2.h - map2.y)) + map2.y;
       food.x = fx;
       food.y = fy;
-      if (food.x < 55)
-        food.x = 55;
-      if (food.x > 610)
-        food.x = 610;
-      if (food.y < 55)
-        food.y = 55;
-      if (food.y > 410)
-        food.y = 410;
 
     } else {
       if (!segments.empty()) {
@@ -260,7 +267,8 @@ int main() {
       }
     }
 
-    // render and present
+    // 将创建的事物以及玩家操作导致它产生的变化渲染出来
+    //  render and present
     SDL_SetRenderDrawColor(renderer01, 165, 222, 229, 255);
     SDL_RenderClear(renderer01);
 
@@ -284,8 +292,11 @@ int main() {
 
     SDL_RenderPresent(renderer01);
 
-    SDL_Delay(1000 / 60);
+    SDL_Delay(1000 / 100);
   }
+
+  // 清理程序运行过程中生成的资源，释放内存
+  SDL_DestroyTexture(foodtex);
   SDL_GameControllerClose(controller);
   SDL_DestroyRenderer(renderer01);
   SDL_DestroyWindow(win1);
