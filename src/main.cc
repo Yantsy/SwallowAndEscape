@@ -5,6 +5,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
+#include <queue>
 // #include <cstddef>
 #include <cstdlib>
 #include <iostream>
@@ -91,9 +92,43 @@ int main() {
   int fy = (rand() % (map2.h - map2.y)) + map2.y;
   // create the rectangles
   std::vector<SDL_Rect> segments;
+  std::vector<SDL_Rect> csegments;
   SDL_Rect block = {x, y, 15, 15};
+  SDL_Rect cblock = {x / 2, y / 2, 15, 15};
   segments.push_back(block);
-  SDL_Rect food = {fx, fy, 17, 17};
+  csegments.push_back(cblock);
+  SDL_Rect food = {fx, fy, 15, 15};
+
+  // cut the map into numbured blocks and integrate them into a grid
+
+  unsigned int numberofblocks, lnumberofblocks, rnumberofblocks,
+      tnumberofblocks, bnumberofblocks;
+  unsigned int i, j;
+  std::vector<unsigned int> blocks;
+  std::vector<std::vector<unsigned int>> neighbors;
+
+  for (i = map2.x; i <= map2.x + map2.w; i += block.w) {
+    for (j = map2.y; j <= map2.y + map2.h; j += block.h) {
+      numberofblocks =
+          ((j - map2.y) / block.h) * (ww / block.w) + ((i - map2.x) / block.w);
+      lnumberofblocks = ((j - map2.y) / block.h) * (ww / block.w) +
+                        ((i - map2.x - block.w) / block.w);
+      rnumberofblocks = ((j - map2.y) / block.h) * (ww / block.w) +
+                        ((i - map2.x + block.w) / block.w);
+      tnumberofblocks = ((j - map2.y - block.h) / block.h) * (ww / block.w) +
+                        ((i - map2.x) / block.w);
+      bnumberofblocks = ((j - map2.y + block.h) / block.h) * (ww / block.w) +
+                        ((i - map2.x) / block.w);
+      blocks.push_back(numberofblocks);
+      neighbors[numberofblocks].push_back(lnumberofblocks);
+      neighbors[numberofblocks].push_back(rnumberofblocks);
+      neighbors[numberofblocks].push_back(tnumberofblocks);
+      neighbors[numberofblocks].push_back(bnumberofblocks);
+    }
+  }
+
+  std::queue<unsigned int> frontier;
+
   // event handler
   SDL_Event e;
 
@@ -102,7 +137,7 @@ int main() {
   if (bgm == nullptr) {
     std::cerr << "Mix_LoadMUS Error: " << Mix_GetError() << std::endl;
   }
-  Mix_PlayMusic(bgm, -1);
+  // Mix_PlayMusic(bgm, -1);
 
   // gamecontroler
 
@@ -223,12 +258,22 @@ int main() {
       }
     }
 
-    // update the position of the snake's head and body
+    // update the position of the player's head and body
 
     block.x += pdir * speed;
     block.y += ndir * speed;
 
     segments.insert(segments.begin(), block);
+
+    // update the position of the cblock's head and body
+
+    frontier.push(cblock.y * cblock.w + cblock.x);
+
+    while (!frontier.empty()) {
+      unsigned int current = frontier.front();
+      for (auto &cs : neighbors[blocks[current]]) {
+      }
+    }
 
     // check for collision with the boundary
     if (block.x < map2.x)
@@ -241,17 +286,18 @@ int main() {
       block.y = map2.y + map2.h - block.w;
 
     // check for collision with food
-    if (std::abs(((block.x + 15) / 2) - ((food.x + 14) / 2)) < 5 &&
-        std::abs(((block.y + 15) / 2) - ((food.y + 14) / 2)) < 5) {
+    if (std::abs(((block.x + 15) / 2) - ((food.x + 15) / 2)) < 5 &&
+        std::abs(((block.y + 15) / 2) - ((food.y + 15) / 2)) < 5) {
       // check and start the controller rumble
       if (controller != nullptr) {
         SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
       } else {
       };
-      fx = (rand() % (map2.w - map2.x)) + map2.x;
-      fy = (rand() % (map2.h - map2.y)) + map2.y;
+      fx = floor(((rand() % (map2.w)) + map2.x) / 15) * 15;
+      fy = floor(((rand() % (map2.h)) + map2.y) / 15) * 15;
       food.x = fx;
       food.y = fy;
+      // std::cout << food.x << "," << food.y << std::endl;(测试用)
 
     } else {
       if (!segments.empty()) {
