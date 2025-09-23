@@ -5,8 +5,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
-#include <queue>
-// #include <cstddef>
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -56,13 +55,12 @@ int main() {
 
   // create the map
 
-  int thickness = 20;
+  int thickness = 15;
   ;
   SDL_Rect map1 = {
-      ww / 8,
-      wh / 16,
-      ww * 3 / 4,
-      wh * 3 / 4,
+      ww / 8, wh / 16,
+      ww * 3 / 4, // 96
+      wh * 3 / 4, // 54
   };
 
   SDL_Rect map2 = {
@@ -80,6 +78,9 @@ int main() {
   // head direction
   int pdir = 1;
   int ndir = 0;
+  int cpdir = 1;
+  int cndir = 0;
+
   // food texture
 
   SDL_Surface *foodsuf = IMG_Load("../assets/food.png");
@@ -93,44 +94,14 @@ int main() {
   // create the rectangles
   std::vector<SDL_Rect> segments;
   std::vector<SDL_Rect> csegments;
+  std::vector<SDL_Rect> foods;
   SDL_Rect block = {x, y, 15, 15};
-  SDL_Rect cblock = {x / 2, y / 2, 15, 15};
+  int speed = block.w / 3;
   segments.push_back(block);
+  SDL_Rect cblock = {map2.x, map2.y, 15, 15};
   csegments.push_back(cblock);
   SDL_Rect food = {fx, fy, 15, 15};
-
-  // cut the map into numbured blocks and integrate them into a grid
-
-  unsigned int numberofblocks, lnumberofblocks, rnumberofblocks,
-      tnumberofblocks, bnumberofblocks;
-  unsigned int i, j;
-  std::vector<unsigned int> blocks;
-  std::vector<std::vector<unsigned int>> neighbors;
-
-  for (i = map2.x; i <= map2.x + map2.w; i += block.w) {
-    for (j = map2.y; j <= map2.y + map2.h; j += block.h) {
-      numberofblocks =
-          ((j - map2.y) / block.h) * (ww / block.w) + ((i - map2.x) / block.w);
-      lnumberofblocks = ((j - map2.y) / block.h) * (ww / block.w) +
-                        ((i - map2.x - block.w) / block.w);
-      rnumberofblocks = ((j - map2.y) / block.h) * (ww / block.w) +
-                        ((i - map2.x + block.w) / block.w);
-      tnumberofblocks = ((j - map2.y - block.h) / block.h) * (ww / block.w) +
-                        ((i - map2.x) / block.w);
-      bnumberofblocks = ((j - map2.y + block.h) / block.h) * (ww / block.w) +
-                        ((i - map2.x) / block.w);
-      blocks.push_back(numberofblocks);
-      neighbors[numberofblocks].push_back(lnumberofblocks);
-      neighbors[numberofblocks].push_back(rnumberofblocks);
-      neighbors[numberofblocks].push_back(tnumberofblocks);
-      neighbors[numberofblocks].push_back(bnumberofblocks);
-    }
-  }
-
-  std::queue<unsigned int> frontier;
-
-  // event handler
-  SDL_Event e;
+  foods.push_back(food);
 
   // bgm
   Mix_Music *bgm = Mix_LoadMUS("../assets/99._Red!.mp3");
@@ -174,9 +145,11 @@ int main() {
   // 设置游戏主循环以及在玩家操作下，上述事物会如何变化
 
   // control variable for the game loop
+  // event handler
+  SDL_Event e;
   bool quit = false;
 
-  int speed = block.w / 2;
+  int ld, rd, td, bd, md;
 
   // game loop
   while (!quit) {
@@ -257,23 +230,41 @@ int main() {
       }
       }
     }
+    ld = abs(cblock.x - speed - food.x) + abs(cblock.y - food.y);
+    rd = abs(cblock.x + speed - food.x) + abs(cblock.y - food.y);
+    td = abs(cblock.x - food.x) + abs(cblock.y - speed - food.y);
+    bd = abs(cblock.x - food.x) + abs(cblock.y + speed - food.y);
 
+    std::vector<int> neighbors = {ld, rd, td, bd};
+
+    md = std::min({neighbors[0], neighbors[1], neighbors[2], neighbors[3]});
+    if (md == neighbors[0]) {
+      cpdir = -1;
+      cndir = 0;
+    }
+    if (md == neighbors[1]) {
+      cpdir = 1;
+      cndir = 0;
+    }
+    if (md == neighbors[2]) {
+      cpdir = 0;
+      cndir = -1;
+    }
+    if (md == neighbors[3]) {
+      cpdir = 0;
+      cndir = 1;
+    }
     // update the position of the player's head and body
 
     block.x += pdir * speed;
     block.y += ndir * speed;
 
+    cblock.x += cpdir * speed;
+    cblock.y += cndir * speed;
+
     segments.insert(segments.begin(), block);
 
-    // update the position of the cblock's head and body
-
-    frontier.push(cblock.y * cblock.w + cblock.x);
-
-    while (!frontier.empty()) {
-      unsigned int current = frontier.front();
-      for (auto &cs : neighbors[blocks[current]]) {
-      }
-    }
+    csegments.insert(csegments.begin(), cblock);
 
     // check for collision with the boundary
     if (block.x < map2.x)
@@ -284,6 +275,15 @@ int main() {
       block.y = map2.y;
     if (block.y > map2.y + map2.h - block.w)
       block.y = map2.y + map2.h - block.w;
+
+    if (cblock.x < map2.x)
+      cblock.x = map2.x;
+    if (cblock.x > map2.x + map2.w - block.w)
+      cblock.x = map2.x + map2.w - block.w;
+    if (cblock.y < map2.y)
+      cblock.y = map2.y;
+    if (block.y > map2.y + map2.h - block.w)
+      cblock.y = map2.y + map2.h - block.w;
 
     // check for collision with food
     if (std::abs(((block.x + 15) / 2) - ((food.x + 15) / 2)) < 5 &&
@@ -297,7 +297,6 @@ int main() {
       fy = floor(((rand() % (map2.h)) + map2.y) / 15) * 15;
       food.x = fx;
       food.y = fy;
-      // std::cout << food.x << "," << food.y << std::endl;(测试用)
 
     } else {
       if (!segments.empty()) {
@@ -306,10 +305,30 @@ int main() {
       }
     }
 
+    if (std::abs(((cblock.x + 15) / 2) - ((food.x + 15) / 2)) < 5 &&
+        std::abs(((cblock.y + 15) / 2) - ((food.y + 15) / 2)) < 5) {
+      // check and start the controller rumble
+      fx = floor(((rand() % (map2.w)) + map2.x) / 15) * 15;
+      fy = floor(((rand() % (map2.h)) + map2.y) / 15) * 15;
+      food.x = fx;
+      food.y = fy;
+
+    } else {
+      if (!csegments.empty()) {
+        csegments.pop_back();
+      } else {
+      }
+    }
+
     // check for collision with the boundary of the snake itself
-    for (int seg; seg < segments.size(); seg++) {
+    for (int seg = 0; seg < segments.size(); seg++) {
       if (std::abs(block.x - segments[seg].x) < 15 &&
           std::abs(block.y - segments[seg].y) < 15) {
+      }
+    }
+    for (int seg = 0; seg < csegments.size(); seg++) {
+      if (std::abs(block.x - csegments[seg].x) < 15 &&
+          std::abs(block.y - csegments[seg].y) < 15) {
       }
     }
 
@@ -334,8 +353,17 @@ int main() {
       SDL_RenderFillRect(renderer01, &segsheet);
     };
 
-    SDL_RenderCopy(renderer01, foodtex, NULL, &food);
+    for (auto &csegsheet : csegments) {
+      if (&csegsheet == &csegments[0]) {
+        SDL_SetRenderDrawColor(renderer01, 47, 79, 79, 255);
+        SDL_RenderFillRect(renderer01, &cblock);
+        continue;
+      };
+      SDL_SetRenderDrawColor(renderer01, 192, 192, 192, 255);
+      SDL_RenderFillRect(renderer01, &csegsheet);
+    };
 
+    SDL_RenderCopy(renderer01, foodtex, NULL, &food);
     SDL_RenderPresent(renderer01);
 
     SDL_Delay(1000 / 100);

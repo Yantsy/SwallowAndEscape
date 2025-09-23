@@ -1,105 +1,471 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_gamecontroller.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
-#include <cstddef>
+#include <queue>
+// #include <cstddef>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 int main() {
 
-  // Initialize SDL video subsystem
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+  // 初始化SDL2的各个子系统
+
+  // initialize SDL video subsystem
+  if (SDL_Init(SDL_INIT_VIDEO) != 0 && SDL_Init(SDL_INIT_AUDIO) != 0) {
     std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
     return 1;
   }
-  // Create an application window with the following settings:
+  // initialize SDL_mixer audio subsystem
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) != 0) {
+    std::cerr << "Mix_OpenAudio Error: " << Mix_GetError() << std::endl;
+    return 1;
+  }
+  // initialize the SDL game controller subsystem
+  if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) {
+    std::cerr << "SDL_InitSubSystem Error: " << SDL_GetError() << std::endl;
+    return 1;
+  }
+
+  // 创建窗口、渲染器（renderer/suface/texture）、事件队列、蛇和食物、地图和控制器等事物
+
+  // Create a window
   SDL_Window *win1 =
       SDL_CreateWindow("SwallowAndEscape", SDL_WINDOWPOS_CENTERED,
-                       SDL_WINDOWPOS_CENTERED, 680, 480,
+                       SDL_WINDOWPOS_CENTERED, 1920, 1080,
                        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE |
                            SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
-  // Check that the window was successfully created
   if (win1 == nullptr) {
     std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
     return 1;
   }
-  // create a renderer
-  SDL_Surface *ws1 = SDL_GetWindowSurface(win1);
+  int ww, wh;
+  SDL_GetWindowSize(win1, &ww, &wh);
 
-  SDL_FillRect(ws1, NULL, SDL_MapRGB(ws1->format, 255, 255, 255));
-  // load a bmp image as surface
+  // create the renderer for the window
 
-  SDL_Surface *is1 =
-      SDL_LoadBMP("/home/yantsy/Documents/SwallowAndEscape/assets/logo.bmp");
-  if (is1 == nullptr) {
-    std::cerr << "SDL_LoadBMP Error: " << SDL_GetError() << std::endl;
-    return 1;
+  SDL_Renderer *renderer01 = SDL_CreateRenderer(
+      win1, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  if (renderer01 == nullptr) {
+    std::cerr << "SDL_CreateRenderer Error:" << SDL_GetError() << std::endl;
   }
 
-  int ws1w = ws1->w;
-  int ws1h = ws1->h;
+  // create the map
 
-  int is1w = is1->w;
-  int is1h = is1->h;
+  int thickness = 15;
+  ;
+  SDL_Rect map1 = {
+      ww / 8, wh / 16,
+      ww * 3 / 4, // 96
+      wh * 3 / 4, // 54
+  };
 
-  SDL_Rect logo;
-  logo.x = (ws1w - is1w) / 2;
-  logo.y = (ws1h - is1h) / 2;
-  logo.w = is1w;
-  logo.h = is1h;
+  SDL_Rect map2 = {
+      map1.x + thickness,
+      map1.y + thickness,
+      map1.w - thickness * 2,
+      map1.h - thickness * 2,
+  };
 
-  // blit the image surface to the window surface
-  SDL_BlitSurface(is1, NULL, ws1, &logo);
-  // update the window surface
-  SDL_UpdateWindowSurface(win1);
+  // create the snake head and food
 
-  bool running = true;
+  // head position
+  int x = ww / 2;
+  int y = wh / 2;
+  // head direction
+  int pdir = 1;
+  int ndir = 0;
+  int cpdir = 1;
+  int cndir = 0;
 
+  // food texture
+
+  SDL_Surface *foodsuf = IMG_Load("../assets/food.png");
+
+  SDL_Texture *foodtex = SDL_CreateTextureFromSurface(renderer01, foodsuf);
+
+  SDL_FreeSurface(foodsuf);
+
+  int fx = (rand() % (map2.w - map2.x)) + map2.x;
+  int fy = (rand() % (map2.h - map2.y)) + map2.y;
+  // create the rectangles
+  std::vector<SDL_Rect> segments;
+  std::vector<SDL_Rect> csegments;
+  SDL_Rect block = {x, y, 15, 15};
+  int speed = block.w / 3;
+  SDL_Rect cblock = {map2.x, map2.y, 15, 15};
+  segments.push_back(block);
+  csegments.push_back(cblock);
+  SDL_Rect food = {fx, fy, 15, 15};
+
+  // cut the map into numbured blocks and integrate them into a grid
+  /*
+    int col = map2.w / block.w;
+    int row = map2.h / block.h;
+
+    unsigned int numberofblocks, lnumberofblocks, rnumberofblocks,
+        tnumberofblocks, bnumberofblocks;
+    unsigned int numberofcblock;
+    unsigned int numberofcblockx;
+    unsigned int numberofcblocky;
+    unsigned int numberoffood =
+        (food.x - map2.x) / block.w + ((food.y - map2.y) / block.h) * (col);
+    unsigned int numberoffoodx =
+        numberoffood - ((food.y - map2.y) / block.h) * (col);
+    unsigned int numberoffoody = (numberoffood - numberoffoodx) / (col);
+    unsigned int i, j;
+    std::vector<unsigned int> blocks;
+    std::queue<unsigned int> frontier;
+    // 在使用 neighbors 之前，先计算需要的大小并初始化
+    int total_blocks = (col) * (row);
+    std::vector<std::vector<unsigned int>> neighbors;
+    neighbors.resize(total_blocks);
+    if (numberofblocks >= total_blocks || lnumberofblocks >= total_blocks ||
+        rnumberofblocks >= total_blocks || tnumberofblocks >= total_blocks ||
+        bnumberofblocks >= total_blocks) {
+      std::cerr << "Invalid block number calculated!" << std::endl;
+      return 1;
+    }
+    // standardize the map into an intergration of blocks and link the neighbors
+    // to each block
+    for (i = map2.x; i < map2.x + map2.w; i += block.w) {
+      for (j = map2.y; j <= map2.y + map2.h; j += block.h) {
+        int block_x = (i - map2.x) / block.w;
+        int block_y = (j - map2.y) / block.h;
+        numberofblocks = block_y * (col) + block_x;
+        lnumberofblocks = block_y * (col) + (block_x - 1);
+        rnumberofblocks = block_y * (col) + (block_x + 1);
+        tnumberofblocks = (block_y - 1) * (col) + block_x;
+        bnumberofblocks = (block_y + 1) * (col) + block_x;
+        blocks.push_back(numberofblocks);
+        neighbors[numberofblocks].push_back(tnumberofblocks);
+        neighbors[numberofblocks].push_back(lnumberofblocks);
+        neighbors[numberofblocks].push_back(bnumberofblocks);
+        neighbors[numberofblocks].push_back(rnumberofblocks);
+      }
+    }
+  */
+  // event handler
   SDL_Event e;
 
-  while (running) {
+  // bgm
+  Mix_Music *bgm = Mix_LoadMUS("../assets/99._Red!.mp3");
+  if (bgm == nullptr) {
+    std::cerr << "Mix_LoadMUS Error: " << Mix_GetError() << std::endl;
+  }
+  // Mix_PlayMusic(bgm, -1);
 
-    while (SDL_PollEvent(&e) != 0) {
-      switch (e.type) {
-      case SDL_QUIT:
-        running = false;
-        break;
-      }
-      SDL_Delay(10);
+  // gamecontroler
+
+  SDL_GameController *controller = SDL_GameControllerOpen(0);
+  int counter;
+  // open the controller
+
+  for (counter = 0; counter < 1; counter++) {
+    if (controller == nullptr) {
+      std::cerr << "SDL_GameControllerOpen Error: " << SDL_GetError()
+                << std::endl;
     }
   }
-  SDL_DestroyWindow(win1);
 
-  SDL_FreeSurface(is1);
-  SDL_FreeSurface(ws1);
+  // check and start the controller rumble
+  for (counter = 0; counter < 1; counter++) {
+    if (controller != nullptr) {
+
+      if (SDL_GameControllerHasRumble(controller) == false) {
+
+        std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
+                  << std::endl;
+
+      } else {
+
+        SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
+      }
+    };
+  }
+
+  // map the controller
+  SDL_GameControllerAddMappingsFromFile("../assets/gamecontrollerdb.txt");
+
+  // 设置游戏主循环以及在玩家操作下，上述事物会如何变化
+
+  // control variable for the game loop
+  bool quit = false;
+
+  unsigned int ttradeoff, ltradeoff, btradeoff, rtradeoff;
+
+  // game loop
+  while (!quit) {
+    while (SDL_PollEvent(&e)) {
+      switch (e.type) {
+
+      case SDL_QUIT: {
+        quit = true;
+        break;
+      }
+
+      case SDL_KEYDOWN: {
+        switch (e.key.keysym.scancode) {
+
+        case SDL_SCANCODE_Q: {
+          ndir = 0;
+          pdir = 0;
+          break;
+        }
+
+        case SDL_SCANCODE_E: {
+          ndir = 0;
+          pdir = 1;
+          break;
+        }
+
+        case SDL_SCANCODE_W:
+        case SDL_SCANCODE_UP:
+          ndir = -1;
+          pdir = 0;
+          break;
+        case SDL_SCANCODE_S:
+        case SDL_SCANCODE_DOWN:
+          ndir = 1;
+          pdir = 0;
+          break;
+        case SDL_SCANCODE_A:
+        case SDL_SCANCODE_LEFT:
+          pdir = -1;
+          ndir = 0;
+          break;
+        case SDL_SCANCODE_D:
+        case SDL_SCANCODE_RIGHT:
+          pdir = 1;
+          ndir = 0;
+          break;
+        default:
+          break;
+        }
+      }
+
+      case (SDL_CONTROLLERBUTTONDOWN): {
+        switch (e.cbutton.button) {
+
+        case SDL_CONTROLLER_BUTTON_START:
+          ndir = 0;
+          pdir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_UP:
+          ndir = -1;
+          pdir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+          ndir = 1;
+          pdir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+          pdir = -1;
+          ndir = 0;
+          break;
+        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+          pdir = 1;
+          ndir = 0;
+          break;
+        default:
+          break;
+        }
+      }
+      }
+    }
+
+    // update the position of the player's head and body
+
+    block.x += pdir * speed;
+    block.y += ndir * speed;
+
+    segments.insert(segments.begin(), block);
+
+    // update the position of the cblock's head and body
+    /*
+        numberofcblock = (cblock.x - map2.x) / block.w +
+                         ((cblock.y - map2.y) / block.h) * (map2.w / block.w);
+        numberofcblockx =
+            numberofcblock - ((cblock.y - map2.y) / block.h) * (map2.w /
+       block.w); numberofcblocky = (numberofcblock - numberofcblockx) / (map2.w
+       / block.w); frontier.push(numberofcblock); ttradeoff =
+       neighbors[frontier.front()][0] -
+                    ((cblock.y - map2.y - block.h) / block.h) * (map2.w /
+       block.w) + (neighbors[frontier.front()][0] -
+                     (((cblock.x - map2.x) / block.w) / (map2.w / block.w))) -
+                    numberoffoodx - numberoffoody;
+        ltradeoff =
+            neighbors[frontier.front()][1] -
+            ((cblock.y - map2.y) / block.h) * (map2.w / block.w) +
+            (neighbors[frontier.front()][1] -
+             (((cblock.x - map2.x - block.w) / block.w) / (map2.w / block.w))) -
+            numberoffoodx - numberoffoody;
+
+        btradeoff = neighbors[frontier.front()][2] -
+                    ((cblock.y - map2.y + block.h) / block.h) * (map2.w /
+       block.w) + (neighbors[frontier.front()][2] -
+                     (((cblock.x - map2.x) / block.w) / (map2.w / block.w))) -
+                    numberoffoodx - numberoffoody;
+        rtradeoff =
+            neighbors[frontier.front()][3] -
+            ((cblock.y - map2.y) / block.h) * (map2.w / block.w) +
+            (neighbors[frontier.front()][3] -
+             (((cblock.x - map2.x - block.w) / block.w) / (map2.w / block.w))) -
+            numberoffoodx - numberoffoody;
+
+        if (ttradeoff < ltradeoff && ttradeoff < btradeoff &&
+            ttradeoff < rtradeoff) {
+          cpdir = 0;
+          cndir = -1;
+        }
+        if (ltradeoff < ttradeoff && ltradeoff < btradeoff &&
+            ltradeoff < rtradeoff) {
+          cpdir = -1;
+          cndir = 0;
+        }
+        if (btradeoff < ttradeoff && btradeoff < ltradeoff &&
+            btradeoff < rtradeoff) {
+          cpdir = 0;
+          cndir = 1;
+        }
+        if (rtradeoff < ttradeoff && rtradeoff < ltradeoff &&
+            rtradeoff < btradeoff) {
+          cpdir = 1;
+          cndir = 0;
+        }
+
+        cblock.x += cpdir * speed;
+        cblock.y += cndir * speed;
+
+        csegments.insert(csegments.begin(), cblock);*/
+
+    // check for collision with the boundary
+    if (block.x < map2.x)
+      block.x = map2.x;
+    if (block.x > map2.x + map2.w - block.w)
+      block.x = map2.x + map2.w - block.w;
+    if (block.y < map2.y)
+      block.y = map2.y;
+    if (block.y > map2.y + map2.h - block.w)
+      block.y = map2.y + map2.h - block.w;
+
+    if (cblock.x < map2.x)
+      cblock.x = map2.x;
+    if (cblock.x > map2.x + map2.w - block.w)
+      cblock.x = map2.x + map2.w - block.w;
+    if (cblock.y < map2.y)
+      cblock.y = map2.y;
+    if (block.y > map2.y + map2.h - block.w)
+      cblock.y = map2.y + map2.h - block.w;
+
+    // check for collision with food
+    if (std::abs(((block.x + 15) / 2) - ((food.x + 15) / 2)) < 5 &&
+        std::abs(((block.y + 15) / 2) - ((food.y + 15) / 2)) < 5) {
+      // check and start the controller rumble
+      if (controller != nullptr) {
+        SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
+      } else {
+      };
+      fx = floor(((rand() % (map2.w)) + map2.x) / 15) * 15;
+      fy = floor(((rand() % (map2.h)) + map2.y) / 15) * 15;
+      food.x = fx;
+      food.y = fy;
+      /*numberoffood = (food.x - map2.x) / block.w +
+                     ((food.y - map2.y) / block.h) * (map2.w / block.w);
+      numberoffoodx =
+          numberoffood - ((food.y - map2.y) / block.h) * (map2.w / block.w);
+      numberoffoody = (numberoffood - numberoffoodx) / (map2.w / block.w);*/
+      // std::cout << food.x << "," << food.y << std::endl;(测试用)
+
+    } else {
+      if (!segments.empty()) {
+        segments.pop_back();
+      } else {
+      }
+    }
+
+    if (std::abs(((cblock.x + 15) / 2) - ((food.x + 15) / 2)) < 5 &&
+        std::abs(((cblock.y + 15) / 2) - ((food.y + 15) / 2)) < 5) {
+      // check and start the controller rumble
+      fx = floor(((rand() % (map2.w)) + map2.x) / 15) * 15;
+      fy = floor(((rand() % (map2.h)) + map2.y) / 15) * 15;
+      food.x = fx;
+      food.y = fy;
+      /*numberoffood = (food.x - map2.x) / block.w +
+                     ((food.y - map2.y) / block.h) * (map2.w / block.w);
+      numberoffoodx =
+          numberoffood - ((food.y - map2.y) / block.h) * (map2.w / block.w);
+      numberoffoody = (numberoffood - numberoffoodx) / (map2.w / block.w);*/
+      // std::cout << food.x << "," << food.y << std::endl;(测试用)
+
+    } else {
+      if (!csegments.empty()) {
+        csegments.pop_back();
+      } else {
+      }
+    }
+
+    // check for collision with the boundary of the snake itself
+    for (int seg = 0; seg < segments.size(); seg++) {
+      if (std::abs(block.x - segments[seg].x) < 15 &&
+          std::abs(block.y - segments[seg].y) < 15) {
+      }
+    }
+    for (int seg = 0; seg < csegments.size(); seg++) {
+      if (std::abs(block.x - csegments[seg].x) < 15 &&
+          std::abs(block.y - csegments[seg].y) < 15) {
+      }
+    }
+
+    // 将创建的事物以及玩家操作导致它产生的变化渲染出来
+    //  render and present
+    SDL_SetRenderDrawColor(renderer01, 165, 222, 229, 255);
+    SDL_RenderClear(renderer01);
+
+    SDL_SetRenderDrawColor(renderer01, 254, 253, 202, 200);
+    SDL_RenderFillRect(renderer01, &map1);
+
+    SDL_SetRenderDrawColor(renderer01, 224, 249, 181, 255);
+    SDL_RenderFillRect(renderer01, &map2);
+
+    for (auto &segsheet : segments) {
+      if (&segsheet == &segments[0]) {
+        SDL_SetRenderDrawColor(renderer01, 255, 69, 69, 255);
+        SDL_RenderFillRect(renderer01, &block);
+        continue;
+      };
+      SDL_SetRenderDrawColor(renderer01, 255, 207, 223, 255);
+      SDL_RenderFillRect(renderer01, &segsheet);
+    };
+
+    for (auto &csegsheet : csegments) {
+      if (&csegsheet == &csegments[0]) {
+        SDL_SetRenderDrawColor(renderer01, 255, 69, 69, 255);
+        SDL_RenderFillRect(renderer01, &cblock);
+        continue;
+      };
+      SDL_SetRenderDrawColor(renderer01, 255, 207, 223, 255);
+      SDL_RenderFillRect(renderer01, &csegsheet);
+    };
+
+    SDL_RenderCopy(renderer01, foodtex, NULL, &food);
+
+    SDL_RenderPresent(renderer01);
+
+    SDL_Delay(1000 / 100);
+  }
+
+  // 清理程序运行过程中生成的资源，释放内存
+  SDL_DestroyTexture(foodtex);
+  SDL_GameControllerClose(controller);
+  SDL_DestroyRenderer(renderer01);
+  SDL_DestroyWindow(win1);
 
   SDL_Quit();
 
   return 0;
-
-  
 }
-/*int p1 = ((block.x + 15) - (food.x + 10)) / 2;
-    int p2 = ((block.y + 15) - (food.y + 10)) / 2;*/
-
-    /*if (p1 < 0) {
-        body = {block.x - 15, block.y, 15, 15};
-        segments.push_back(body);
-      }
-      if (p1 > 0) {
-        body = {block.x + 15, block.y, 15, 15};
-        segments.push_back(body);
-      }
-      if (p2 < 0) {
-        body = {block.x, block.y - 15, 15, 15};
-        segments.push_back(body);
-      }
-      if (p2 > 0) {
-        body = {block.x, block.y + 15, 15, 15};
-        segments.push_back(body);
-      } else {
-      }
-      for (auto &segsheet : segments) {
-        SDL_SetRenderDrawColor(renderer01, 0, 0, 0, 255);
-        SDL_RenderFillRect(renderer01, &segsheet);
-      }*/
