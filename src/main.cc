@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_gamecontroller.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_render.h>
@@ -9,6 +8,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+
+#include "../include/quote.h"
 
 int main() {
 
@@ -58,9 +59,10 @@ int main() {
   int thickness = 15;
   ;
   SDL_Rect map1 = {
-      ww / 8, wh / 16,
-      ww * 3 / 4, // 96
-      wh * 3 / 4, // 54
+      ww / 8,
+      wh / 16,
+      ww * 3 / 4,
+      wh * 3 / 4,
   };
 
   SDL_Rect map2 = {
@@ -113,31 +115,14 @@ int main() {
   // gamecontroler
 
   SDL_GameController *controller = SDL_GameControllerOpen(0);
-  int counter;
+
   // open the controller
 
-  for (counter = 0; counter < 1; counter++) {
-    if (controller == nullptr) {
-      std::cerr << "SDL_GameControllerOpen Error: " << SDL_GetError()
-                << std::endl;
-    }
-  }
+  controlleropencheck(controller);
 
   // check and start the controller rumble
-  for (counter = 0; counter < 1; counter++) {
-    if (controller != nullptr) {
 
-      if (SDL_GameControllerHasRumble(controller) == false) {
-
-        std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
-                  << std::endl;
-
-      } else {
-
-        SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
-      }
-    };
-  }
+  controllerrumbleopencheck(controller);
 
   // map the controller
   SDL_GameControllerAddMappingsFromFile("../assets/gamecontrollerdb.txt");
@@ -202,31 +187,8 @@ int main() {
       }
 
       case (SDL_CONTROLLERBUTTONDOWN): {
-        switch (e.cbutton.button) {
-
-        case SDL_CONTROLLER_BUTTON_START:
-          ndir = 0;
-          pdir = 0;
-          break;
-        case SDL_CONTROLLER_BUTTON_DPAD_UP:
-          ndir = -1;
-          pdir = 0;
-          break;
-        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-          ndir = 1;
-          pdir = 0;
-          break;
-        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
-          pdir = -1;
-          ndir = 0;
-          break;
-        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
-          pdir = 1;
-          ndir = 0;
-          break;
-        default:
-          break;
-        }
+        pad(ndir, pdir, e);
+        break;
       }
       }
     }
@@ -267,23 +229,8 @@ int main() {
     csegments.insert(csegments.begin(), cblock);
 
     // check for collision with the boundary
-    if (block.x < map2.x)
-      block.x = map2.x;
-    if (block.x > map2.x + map2.w - block.w)
-      block.x = map2.x + map2.w - block.w;
-    if (block.y < map2.y)
-      block.y = map2.y;
-    if (block.y > map2.y + map2.h - block.w)
-      block.y = map2.y + map2.h - block.w;
-
-    if (cblock.x < map2.x)
-      cblock.x = map2.x;
-    if (cblock.x > map2.x + map2.w - block.w)
-      cblock.x = map2.x + map2.w - block.w;
-    if (cblock.y < map2.y)
-      cblock.y = map2.y;
-    if (block.y > map2.y + map2.h - block.w)
-      cblock.y = map2.y + map2.h - block.w;
+    boundarycheck(&block, map2);
+    boundarycheck(&cblock, map2);
 
     // check for collision with food
     if (std::abs(((block.x + 15) / 2) - ((food.x + 15) / 2)) < 5 &&

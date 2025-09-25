@@ -5,8 +5,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
-#include <queue>
-// #include <cstddef>
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -95,62 +94,14 @@ int main() {
   // create the rectangles
   std::vector<SDL_Rect> segments;
   std::vector<SDL_Rect> csegments;
+  std::vector<SDL_Rect> foods;
   SDL_Rect block = {x, y, 15, 15};
   int speed = block.w / 3;
-  SDL_Rect cblock = {map2.x, map2.y, 15, 15};
   segments.push_back(block);
+  SDL_Rect cblock = {map2.x, map2.y, 15, 15};
   csegments.push_back(cblock);
   SDL_Rect food = {fx, fy, 15, 15};
-
-  // cut the map into numbured blocks and integrate them into a grid
-  /*
-    int col = map2.w / block.w;
-    int row = map2.h / block.h;
-
-    unsigned int numberofblocks, lnumberofblocks, rnumberofblocks,
-        tnumberofblocks, bnumberofblocks;
-    unsigned int numberofcblock;
-    unsigned int numberofcblockx;
-    unsigned int numberofcblocky;
-    unsigned int numberoffood =
-        (food.x - map2.x) / block.w + ((food.y - map2.y) / block.h) * (col);
-    unsigned int numberoffoodx =
-        numberoffood - ((food.y - map2.y) / block.h) * (col);
-    unsigned int numberoffoody = (numberoffood - numberoffoodx) / (col);
-    unsigned int i, j;
-    std::vector<unsigned int> blocks;
-    std::queue<unsigned int> frontier;
-    // 在使用 neighbors 之前，先计算需要的大小并初始化
-    int total_blocks = (col) * (row);
-    std::vector<std::vector<unsigned int>> neighbors;
-    neighbors.resize(total_blocks);
-    if (numberofblocks >= total_blocks || lnumberofblocks >= total_blocks ||
-        rnumberofblocks >= total_blocks || tnumberofblocks >= total_blocks ||
-        bnumberofblocks >= total_blocks) {
-      std::cerr << "Invalid block number calculated!" << std::endl;
-      return 1;
-    }
-    // standardize the map into an intergration of blocks and link the neighbors
-    // to each block
-    for (i = map2.x; i < map2.x + map2.w; i += block.w) {
-      for (j = map2.y; j <= map2.y + map2.h; j += block.h) {
-        int block_x = (i - map2.x) / block.w;
-        int block_y = (j - map2.y) / block.h;
-        numberofblocks = block_y * (col) + block_x;
-        lnumberofblocks = block_y * (col) + (block_x - 1);
-        rnumberofblocks = block_y * (col) + (block_x + 1);
-        tnumberofblocks = (block_y - 1) * (col) + block_x;
-        bnumberofblocks = (block_y + 1) * (col) + block_x;
-        blocks.push_back(numberofblocks);
-        neighbors[numberofblocks].push_back(tnumberofblocks);
-        neighbors[numberofblocks].push_back(lnumberofblocks);
-        neighbors[numberofblocks].push_back(bnumberofblocks);
-        neighbors[numberofblocks].push_back(rnumberofblocks);
-      }
-    }
-  */
-  // event handler
-  SDL_Event e;
+  foods.push_back(food);
 
   // bgm
   Mix_Music *bgm = Mix_LoadMUS("../assets/99._Red!.mp3");
@@ -194,9 +145,11 @@ int main() {
   // 设置游戏主循环以及在玩家操作下，上述事物会如何变化
 
   // control variable for the game loop
+  // event handler
+  SDL_Event e;
   bool quit = false;
 
-  unsigned int ttradeoff, ltradeoff, btradeoff, rtradeoff;
+  int ld, rd, td, bd, md;
 
   // game loop
   while (!quit) {
@@ -277,71 +230,41 @@ int main() {
       }
       }
     }
+    ld = abs(cblock.x - speed - food.x) + abs(cblock.y - food.y);
+    rd = abs(cblock.x + speed - food.x) + abs(cblock.y - food.y);
+    td = abs(cblock.x - food.x) + abs(cblock.y - speed - food.y);
+    bd = abs(cblock.x - food.x) + abs(cblock.y + speed - food.y);
 
+    std::vector<int> neighbors = {ld, rd, td, bd};
+
+    md = std::min({neighbors[0], neighbors[1], neighbors[2], neighbors[3]});
+    if (md == neighbors[0]) {
+      cpdir = -1;
+      cndir = 0;
+    }
+    if (md == neighbors[1]) {
+      cpdir = 1;
+      cndir = 0;
+    }
+    if (md == neighbors[2]) {
+      cpdir = 0;
+      cndir = -1;
+    }
+    if (md == neighbors[3]) {
+      cpdir = 0;
+      cndir = 1;
+    }
     // update the position of the player's head and body
 
     block.x += pdir * speed;
     block.y += ndir * speed;
 
+    cblock.x += cpdir * speed;
+    cblock.y += cndir * speed;
+
     segments.insert(segments.begin(), block);
 
-    // update the position of the cblock's head and body
-    /*
-        numberofcblock = (cblock.x - map2.x) / block.w +
-                         ((cblock.y - map2.y) / block.h) * (map2.w / block.w);
-        numberofcblockx =
-            numberofcblock - ((cblock.y - map2.y) / block.h) * (map2.w /
-       block.w); numberofcblocky = (numberofcblock - numberofcblockx) / (map2.w
-       / block.w); frontier.push(numberofcblock); ttradeoff =
-       neighbors[frontier.front()][0] -
-                    ((cblock.y - map2.y - block.h) / block.h) * (map2.w /
-       block.w) + (neighbors[frontier.front()][0] -
-                     (((cblock.x - map2.x) / block.w) / (map2.w / block.w))) -
-                    numberoffoodx - numberoffoody;
-        ltradeoff =
-            neighbors[frontier.front()][1] -
-            ((cblock.y - map2.y) / block.h) * (map2.w / block.w) +
-            (neighbors[frontier.front()][1] -
-             (((cblock.x - map2.x - block.w) / block.w) / (map2.w / block.w))) -
-            numberoffoodx - numberoffoody;
-
-        btradeoff = neighbors[frontier.front()][2] -
-                    ((cblock.y - map2.y + block.h) / block.h) * (map2.w /
-       block.w) + (neighbors[frontier.front()][2] -
-                     (((cblock.x - map2.x) / block.w) / (map2.w / block.w))) -
-                    numberoffoodx - numberoffoody;
-        rtradeoff =
-            neighbors[frontier.front()][3] -
-            ((cblock.y - map2.y) / block.h) * (map2.w / block.w) +
-            (neighbors[frontier.front()][3] -
-             (((cblock.x - map2.x - block.w) / block.w) / (map2.w / block.w))) -
-            numberoffoodx - numberoffoody;
-
-        if (ttradeoff < ltradeoff && ttradeoff < btradeoff &&
-            ttradeoff < rtradeoff) {
-          cpdir = 0;
-          cndir = -1;
-        }
-        if (ltradeoff < ttradeoff && ltradeoff < btradeoff &&
-            ltradeoff < rtradeoff) {
-          cpdir = -1;
-          cndir = 0;
-        }
-        if (btradeoff < ttradeoff && btradeoff < ltradeoff &&
-            btradeoff < rtradeoff) {
-          cpdir = 0;
-          cndir = 1;
-        }
-        if (rtradeoff < ttradeoff && rtradeoff < ltradeoff &&
-            rtradeoff < btradeoff) {
-          cpdir = 1;
-          cndir = 0;
-        }
-
-        cblock.x += cpdir * speed;
-        cblock.y += cndir * speed;
-
-        csegments.insert(csegments.begin(), cblock);*/
+    csegments.insert(csegments.begin(), cblock);
 
     // check for collision with the boundary
     if (block.x < map2.x)
@@ -374,12 +297,6 @@ int main() {
       fy = floor(((rand() % (map2.h)) + map2.y) / 15) * 15;
       food.x = fx;
       food.y = fy;
-      /*numberoffood = (food.x - map2.x) / block.w +
-                     ((food.y - map2.y) / block.h) * (map2.w / block.w);
-      numberoffoodx =
-          numberoffood - ((food.y - map2.y) / block.h) * (map2.w / block.w);
-      numberoffoody = (numberoffood - numberoffoodx) / (map2.w / block.w);*/
-      // std::cout << food.x << "," << food.y << std::endl;(测试用)
 
     } else {
       if (!segments.empty()) {
@@ -395,12 +312,6 @@ int main() {
       fy = floor(((rand() % (map2.h)) + map2.y) / 15) * 15;
       food.x = fx;
       food.y = fy;
-      /*numberoffood = (food.x - map2.x) / block.w +
-                     ((food.y - map2.y) / block.h) * (map2.w / block.w);
-      numberoffoodx =
-          numberoffood - ((food.y - map2.y) / block.h) * (map2.w / block.w);
-      numberoffoody = (numberoffood - numberoffoodx) / (map2.w / block.w);*/
-      // std::cout << food.x << "," << food.y << std::endl;(测试用)
 
     } else {
       if (!csegments.empty()) {
@@ -444,16 +355,15 @@ int main() {
 
     for (auto &csegsheet : csegments) {
       if (&csegsheet == &csegments[0]) {
-        SDL_SetRenderDrawColor(renderer01, 255, 69, 69, 255);
+        SDL_SetRenderDrawColor(renderer01, 47, 79, 79, 255);
         SDL_RenderFillRect(renderer01, &cblock);
         continue;
       };
-      SDL_SetRenderDrawColor(renderer01, 255, 207, 223, 255);
+      SDL_SetRenderDrawColor(renderer01, 192, 192, 192, 255);
       SDL_RenderFillRect(renderer01, &csegsheet);
     };
 
     SDL_RenderCopy(renderer01, foodtex, NULL, &food);
-
     SDL_RenderPresent(renderer01);
 
     SDL_Delay(1000 / 100);
