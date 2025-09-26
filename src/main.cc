@@ -12,9 +12,6 @@
 #include "../include/quote.h"
 
 int main() {
-
-  // 初始化SDL2的各个子系统
-
   // initialize SDL video subsystem
   if (SDL_Init(SDL_INIT_VIDEO) != 0 && SDL_Init(SDL_INIT_AUDIO) != 0) {
     std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
@@ -91,6 +88,8 @@ int main() {
 
   SDL_FreeSurface(foodsuf);
 
+  // food position
+
   int fx = (rand() % (map2.w - map2.x)) + map2.x;
   int fy = (rand() % (map2.h - map2.y)) + map2.y;
   // create the rectangles
@@ -147,47 +146,12 @@ int main() {
       }
 
       case SDL_KEYDOWN: {
-        switch (e.key.keysym.scancode) {
-
-        case SDL_SCANCODE_Q: {
-          ndir = 0;
-          pdir = 0;
-          break;
-        }
-
-        case SDL_SCANCODE_E: {
-          ndir = 0;
-          pdir = 1;
-          break;
-        }
-
-        case SDL_SCANCODE_W:
-        case SDL_SCANCODE_UP:
-          ndir = -1;
-          pdir = 0;
-          break;
-        case SDL_SCANCODE_S:
-        case SDL_SCANCODE_DOWN:
-          ndir = 1;
-          pdir = 0;
-          break;
-        case SDL_SCANCODE_A:
-        case SDL_SCANCODE_LEFT:
-          pdir = -1;
-          ndir = 0;
-          break;
-        case SDL_SCANCODE_D:
-        case SDL_SCANCODE_RIGHT:
-          pdir = 1;
-          ndir = 0;
-          break;
-        default:
-          break;
-        }
+        keyboard(&pdir, &ndir, e);
+        break;
       }
 
       case (SDL_CONTROLLERBUTTONDOWN): {
-        pad(ndir, pdir, e);
+        pad(pdir, ndir, e);
         break;
       }
       }

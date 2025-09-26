@@ -18,76 +18,60 @@ void controllerrumbleopencheck(SDL_GameController *controller) {
 
         std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError()
                   << std::endl;
-
-      } else {
-
-        SDL_GameControllerRumble(controller, 0x4000, 0x4000, 300);
       }
     };
   }
 };
-void keyboard(int ndir, int pdir, SDL_Event e) {
+void keyboard(int *xdir, int *ydir, SDL_Event e) {
 
   switch (e.key.keysym.scancode) {
 
   case SDL_SCANCODE_Q: {
-    ndir = 0;
-    pdir = 0;
-    break;
-  }
-
-  case SDL_SCANCODE_E: {
-    ndir = 0;
-    pdir = 1;
+    *xdir = 0, *ydir = 0;
     break;
   }
 
   case SDL_SCANCODE_W:
   case SDL_SCANCODE_UP:
-    ndir = -1;
-    pdir = 0;
+    *ydir = -1, *xdir = 0;
     break;
+
   case SDL_SCANCODE_S:
   case SDL_SCANCODE_DOWN:
-    ndir = 1;
-    pdir = 0;
+    *ydir = 1, *xdir = 0;
     break;
+
   case SDL_SCANCODE_A:
   case SDL_SCANCODE_LEFT:
-    pdir = -1;
-    ndir = 0;
+    *xdir = -1, *ydir = 0;
     break;
+
   case SDL_SCANCODE_D:
   case SDL_SCANCODE_RIGHT:
-    pdir = 1;
-    ndir = 0;
+    *xdir = 1, *ydir = 0;
     break;
+
   default:
     break;
   }
 }
-void pad(int ndir, int pdir, SDL_Event e) {
+void pad(int &xdir, int &ydir, SDL_Event e) {
   switch (e.cbutton.button) {
 
   case SDL_CONTROLLER_BUTTON_START:
-    ndir = 0;
-    pdir = 0;
+    xdir = 0, ydir = 0;
     break;
   case SDL_CONTROLLER_BUTTON_DPAD_UP:
-    ndir = -1;
-    pdir = 0;
+    ydir = -1, xdir = 0;
     break;
   case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-    ndir = 1;
-    pdir = 0;
+    ydir = 1, xdir = 0;
     break;
   case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
-    pdir = -1;
-    ndir = 0;
+    xdir = -1, ydir = 0;
     break;
   case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
-    pdir = 1;
-    ndir = 0;
+    xdir = 1, ydir = 0;
     break;
   default:
     break;
