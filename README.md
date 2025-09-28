@@ -1,1 +1,1 @@
-# Anything but useful ones
+# 基于SDL2的贪吃蛇游戏
