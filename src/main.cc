@@ -1,3 +1,4 @@
+#include "../include/quote.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
@@ -8,8 +9,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
-
-#include "../include/quote.h"
 
 int main() {
   // initialize SDL video subsystem
@@ -71,9 +70,6 @@ int main() {
 
   // create the snake head and food
 
-  // head position
-  int x = ww / 2;
-  int y = wh / 2;
   // head direction
   int pdir = 1;
   int ndir = 0;
@@ -96,7 +92,7 @@ int main() {
   std::vector<SDL_Rect> segments;
   std::vector<SDL_Rect> csegments;
   std::vector<SDL_Rect> foods;
-  SDL_Rect block = {x, y, 15, 15};
+  SDL_Rect block = {ww / 2, wh / 2, 15, 15};
   int speed = block.w / 3;
   segments.push_back(block);
   SDL_Rect cblock = {map2.x, map2.y, 15, 15};
@@ -277,7 +273,7 @@ int main() {
     SDL_RenderCopy(renderer01, foodtex, NULL, &food);
     SDL_RenderPresent(renderer01);
 
-    SDL_Delay(1000 / 100);
+    SDL_Delay(1000 / 60);
   }
 
   // 清理程序运行过程中生成的资源，释放内存
