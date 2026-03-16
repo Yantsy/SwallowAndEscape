@@ -3,3 +3,19 @@ build/
 .cache/
 .clangd/
 .index/
+# Build directories
+build/
+dist/
+AppDir/
+
+# Downloaded tools
+linuxdeploy-*.AppImage
+SDL2-mingw/
+SDL2_image-mingw/
+SDL2_mixer-mingw/
+*.tar.gz
+*.zip
+
+# Windows build artifacts
+*.exe
+*.dll

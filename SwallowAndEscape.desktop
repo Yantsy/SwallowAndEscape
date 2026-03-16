@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Swallow And Escape
+Comment=A snake game with AI opponent
+Exec=SwallowAndEscape
+Icon=swallowandscape
+Categories=Game;ArcadeGame;
+Terminal=false
