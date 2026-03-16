@@ -39,11 +39,39 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-## 文档
+## 📚 文档
 
+### 新手入门
+- **[实战演示](HANDS_ON_TUTORIAL.md)** ⭐ 推荐！跟着做一遍，完全理解整个流程
 - **[快速入门](QUICK_START.md)** - 5分钟学会发布游戏
-- **[完整指南](RELEASE_GUIDE.md)** - 详细的发行教程（包含Shell、CMake、打包等基础知识）
-- **[构建流程](BUILD_PROCESS.md)** - 图解构建和发布流程
+
+### 深入学习
+- **[完整指南](RELEASE_GUIDE.md)** - 详细教程，包含：
+  - Shell脚本基础（逐行解释）
+  - CMake构建系统（每个命令的含义）
+  - Linux打包原理（为什么这样做）
+  - Windows交叉编译（MinGW是什么）
+  - GitHub Actions自动化（YAML语法）
+  
+- **[构建流程图解](BUILD_PROCESS.md)** - 可视化流程图：
+  - 从源代码到可执行文件
+  - 依赖关系图
+  - 用户使用流程
+  - 调试技巧
+
+### 文档导航
+
+```
+不知道从哪开始？
+    ↓
+想快速上手？ → HANDS_ON_TUTORIAL.md (实战演示)
+    ↓
+想了解原理？ → RELEASE_GUIDE.md (完整指南)
+    ↓
+想看流程图？ → BUILD_PROCESS.md (图解)
+    ↓
+只想发布？ → QUICK_START.md (快速入门)
+```
 
 ## 游戏控制
 
@@ -59,8 +87,38 @@ git push origin v1.0.0
 ## 技术栈
 
 - C++17
-- SDL2
-- CMake
+- SDL2 (图形、音频、输入)
+- CMake (构建系统)
+- GitHub Actions (CI/CD)
+
+## 项目结构
+
+```
+SwallowAndEscape/
+├── src/                      # 源代码
+│   ├── main.cc              # 主程序
+│   ├── quote.cc/h           # 辅助函数
+├── assets/                   # 游戏资源
+│   ├── food.png             # 食物贴图
+│   ├── A.mp3                # 背景音乐
+│   └── gamecontrollerdb.txt # 手柄映射
+├── build-simple-package.sh   # Linux打包脚本
+├── build-windows.sh          # Windows交叉编译脚本
+├── CMakeLists.txt            # CMake配置
+└── .github/workflows/        # GitHub Actions配置
+    └── release.yml
+```
+
+## 发布流程
+
+```
+1. 修改代码
+2. 本地测试: ./build-simple-package.sh
+3. 提交代码: git commit && git push
+4. 创建标签: git tag v1.0.0 && git push origin v1.0.0
+5. GitHub Actions自动构建Linux和Windows版本
+6. 自动发布到Releases页面
+```
 
 ## 许可证
 
