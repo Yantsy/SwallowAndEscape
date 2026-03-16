@@ -132,6 +132,7 @@ int main() {
     // game loop
     while (!quit) {
         while (SDL_PollEvent(&e)) {
+
             switch (e.type) {
 
             case SDL_QUIT: {
@@ -146,6 +147,25 @@ int main() {
 
             case (SDL_CONTROLLERBUTTONDOWN): {
                 pad(pdir, ndir, e);
+                break;
+            }
+            case SDL_CONTROLLERDEVICEADDED: {
+                if (controller == nullptr) {
+                    controller = SDL_GameControllerOpen(e.cdevice.which);
+                    controlleropencheck(controller);
+                    controllerrumbleopencheck(controller);
+                    std::cout << "controller connected" << std::endl;
+                }
+                break;
+            }
+            case SDL_CONTROLLERDEVICEREMOVED: {
+                if (controller != nullptr
+                    && e.cdevice.which
+                        == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))) {
+                    SDL_GameControllerClose(controller);
+                    controller = nullptr;
+                    std::cout << "controller removed" << std::endl;
+                }
                 break;
             }
             }
