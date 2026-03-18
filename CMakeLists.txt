@@ -28,10 +28,6 @@ target_link_libraries(${PROJECT_NAME}
     ${SDL2MIXER_LIBRARIES}
 )
 
-# 安装规则
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
-install(DIRECTORY assets DESTINATION share/${PROJECT_NAME})
-
 # 构建后复制资源（用于本地测试）
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
