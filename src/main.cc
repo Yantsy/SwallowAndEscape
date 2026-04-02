@@ -1,16 +1,133 @@
-#include "quote.h"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_video.h>
-#include <algorithm>
-#include <cstdlib>
-#include <iostream>
-#include <vector>
+#include "quote.hpp"
+#include <format>
 
-int main() {
+void addplayer(std::vector<Player>& playerlist, Player player) {
+    playerlist.insert(playerlist.end(), player);
+};
+void updatecposition(Player& player, Food& food) {
+    auto& x = player.block.x;
+    auto& y = player.block.y;
+};
+void updateplayerposition(Player& player, int& xdir, int& ydir) {
+    int speed = player.block.w;
+    auto& x   = player.block.x;
+    auto& y   = player.block.y;
+    x += xdir * speed;
+    y += ydir * speed;
+    player.segments.insert(player.segments.begin(), player.block);
+    player.segments.pop_back();
+};
+void paintplayer(Player& player, SDL_Renderer* render) {
+    auto& features = player.features;
+    for (auto& segsheet : player.segments) {
+        if (&segsheet == &player.segments[0]) {
+            SDL_SetRenderDrawColor(render, features.hr, features.hg, features.hb, features.ha);
+            SDL_RenderFillRect(render, &segsheet);
+        } else {
+            SDL_SetRenderDrawColor(render, features.br, features.bg, features.bb, features.ba);
+            SDL_RenderFillRect(render, &segsheet);
+        }
+    }
+}
+void paintplayers(std::vector<Player>& playerlist, SDL_Renderer* renderer) {
+    for (auto& player : playerlist) {
+        if (&player == &playerlist[0]) {
+            player.features = { 106, 168, 79, 255, 147, 196, 125, 255 };
+            paintplayer(player, renderer);
+        } else if (&player == &playerlist[1]) {
+            player.features = { 204, 0, 0, 255, 132, 174, 125, 255 };
+            paintplayer(player, renderer);
+        }
+    }
+};
+void updatefoodposition(Food& food) {
+    auto& x = food.x;
+    auto& y = food.y;
+}
+void checkcollisionwithfood(Food& food, Player& player) { }
+void paintfood(Food& food, SDL_Renderer* renderer) { };
+void keyboard(int* xdir, int* ydir, SDL_Event e) {
+
+    switch (e.key.keysym.scancode) {
+
+    case SDL_SCANCODE_Q: {
+        *xdir = 0, *ydir = 0;
+        break;
+    }
+
+    case SDL_SCANCODE_W:
+    case SDL_SCANCODE_UP:
+        *ydir = -1, *xdir = 0;
+        break;
+
+    case SDL_SCANCODE_S:
+    case SDL_SCANCODE_DOWN:
+        *ydir = 1, *xdir = 0;
+        break;
+
+    case SDL_SCANCODE_A:
+    case SDL_SCANCODE_LEFT:
+        *xdir = -1, *ydir = 0;
+        break;
+
+    case SDL_SCANCODE_D:
+    case SDL_SCANCODE_RIGHT:
+        *xdir = 1, *ydir = 0;
+        break;
+
+    default:
+        break;
+    }
+};
+void pad(int& xdir, int& ydir, SDL_Event e) {
+    switch (e.cbutton.button) {
+
+    case SDL_CONTROLLER_BUTTON_START:
+        xdir = 0, ydir = 0;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+        ydir = -1, xdir = 0;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+        ydir = 1, xdir = 0;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+        xdir = -1, ydir = 0;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+        xdir = 1, ydir = 0;
+        break;
+    default:
+        break;
+    }
+};
+void controlleropencheck(SDL_GameController* controller) {
+    for (int counter = 0; counter < 1; counter++) {
+        if (controller == nullptr) {
+            std::cerr << "SDL_GameControllerOpen Error: " << SDL_GetError() << std::endl;
+        }
+    }
+};
+void controllerrumbleopencheck(SDL_GameController* controller) {
+    for (int counter = 0; counter < 1; counter++) {
+        if (controller != nullptr) {
+
+            if (SDL_GameControllerHasRumble(controller) == false) {
+
+                std::cerr << "SDL_GameControllerHasRumble Error: " << SDL_GetError() << std::endl;
+            }
+        };
+    }
+};
+
+void boundarycheck(SDL_Rect* object, SDL_Rect map) {
+    if (object->x < map.x) object->x = map.x;
+    if (object->x > map.x + map.w - object->w) object->x = map.x + map.w - object->w;
+    if (object->y < map.y) object->y = map.y;
+    if (object->y > map.y + map.h - object->w) object->y = map.y + map.h - object->w;
+};
+
+int copy() {
     // initialize SDL video subsystem
     if (SDL_Init(SDL_INIT_VIDEO) != 0 && SDL_Init(SDL_INIT_AUDIO) != 0) {
         std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
@@ -68,7 +185,7 @@ int main() {
 
     // create the snake head and food
 
-    // head direction
+    // initialize head direction
     int pdir  = 1;
     int ndir  = 0;
     int cpdir = 1;
@@ -301,4 +418,118 @@ int main() {
     SDL_Quit();
 
     return 0;
+}
+
+int main() {
+    // initialize SDL video subsystem
+    if (SDL_Init(SDL_INIT_VIDEO) != 0 && SDL_Init(SDL_INIT_AUDIO) != 0) {
+        std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
+        return 1;
+    }
+    // initialize SDL_mixer audio subsystem
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) != 0) {
+        std::cerr << "Mix_OpenAudio Error: " << Mix_GetError() << std::endl;
+        return 1;
+    }
+    // initialize the SDL game controller subsystem
+    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) {
+        std::cerr << "SDL_InitSubSystem Error: " << SDL_GetError() << std::endl;
+        return 1;
+    }
+
+    // 创建窗口、渲染器（renderer/suface/texture）、事件队列、蛇和食物、地图和控制器等事物
+
+    // Create a window
+    SDL_Window* win1 = SDL_CreateWindow("SwallowAndEscape", SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED, 1920, 1080,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
+    if (win1 == nullptr) {
+        std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
+        return 1;
+    }
+    int ww, wh;
+    SDL_GetWindowSize(win1, &ww, &wh);
+
+    // create the renderer for the window
+
+    SDL_Renderer* renderer01 =
+        SDL_CreateRenderer(win1, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (renderer01 == nullptr) {
+        std::cerr << "SDL_CreateRenderer Error:" << SDL_GetError() << std::endl;
+    }
+
+    // create the map
+
+    int thickness = 15;
+    ;
+    SDL_Rect map1 = {
+        ww / 8,
+        wh / 16,
+        ww * 3 / 4,
+        wh * 3 / 4,
+    };
+
+    SDL_Rect map2 = {
+        map1.x + thickness,
+        map1.y + thickness,
+        map1.w - thickness * 2,
+        map1.h - thickness * 2,
+    };
+    // create bgm
+    Mix_Music* bgm = Mix_LoadMUS("assets/A.mp3");
+    if (bgm == nullptr) {
+        std::cerr << "Mix_LoadMUS Error: " << Mix_GetError() << std::endl;
+    }
+    Mix_PlayMusic(bgm, -1);
+
+    // create controler
+    //  gamecontroler
+    SDL_GameController* controller = SDL_GameControllerOpen(0);
+    // open the controller
+    controlleropencheck(controller);
+    // check and start the controller rumble
+    controllerrumbleopencheck(controller);
+    // map the controller
+    SDL_GameControllerAddMappingsFromFile("assets/gamecontrollerdb.txt");
+    //  create players
+
+    std::vector<Player> playerlist { };
+    Player p0(ww / 2, wh / 2, 15, 15), cp(ww / 2, wh / 2, 15, 15), p1(ww / 2, wh / 2, 15, 15);
+    playerlist.insert(playerlist.end(), cp);
+    playerlist.insert(playerlist.end(), p0);
+
+    // create food
+    Food food;
+    SDL_Surface* foodsuf = IMG_Load("assets/food.png");
+
+    SDL_Texture* foodtex = SDL_CreateTextureFromSurface(renderer01, foodsuf);
+    food.texture.reset(foodtex);
+
+    SDL_FreeSurface(foodsuf);
+
+    // options
+    bool quit      = false;
+    bool newplayer = false;
+    SDL_Event e;
+    // gameloop
+    while (!quit) {
+        while (SDL_PollEvent(&e)) {
+            switch (e.type) { }
+        }
+
+        // paint the map
+        SDL_SetRenderDrawColor(renderer01, 165, 222, 229, 255);
+        SDL_RenderClear(renderer01);
+
+        SDL_SetRenderDrawColor(renderer01, 254, 253, 202, 200);
+        SDL_RenderFillRect(renderer01, &map1);
+
+        SDL_SetRenderDrawColor(renderer01, 224, 249, 181, 255);
+        SDL_RenderFillRect(renderer01, &map2);
+        // paint the players and food
+        updatefoodposition(food);
+        updatecposition(cp, food);
+        paintplayers(playerlist, renderer01);
+        paintfood(food, renderer01);
+    };
 }

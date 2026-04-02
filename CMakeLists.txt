@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.28)
 
 project(SwallowAndEscape VERSION 1.0.0)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(PkgConfig REQUIRED)
@@ -12,8 +12,8 @@ pkg_check_modules(SDL2MIXER REQUIRED SDL2_mixer)
 
 add_executable(${PROJECT_NAME}
     src/main.cc
-    src/quote.h
-    src/quote.cc
+    src/quote.hpp
+    src/client.hpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
