@@ -29,7 +29,7 @@ struct Features {
 
 struct Player {
     int id;
-    int orig_x, orig_y, w, h;
+    int xdir = 0, ydir = 0;
     SDL_Rect block;
     std::vector<SDL_Rect> segments;
     sockaddr_in from { }, to { };
@@ -48,6 +48,10 @@ struct Food {
     std::unique_ptr<SDL_Texture> texture { nullptr };
     SDL_Rect body;
     int x, y;
+    Food(int w, int h) {
+        body.w = w;
+        body.h = h;
+    }
 };
 
 enum PacketType : int { JOIN = 1, SEND = 2, RETURN = 3, PAUSE = 0, QUIT = -1 };

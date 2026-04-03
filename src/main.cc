@@ -8,15 +8,19 @@ void updatecposition(Player& player, Food& food) {
     auto& x = player.block.x;
     auto& y = player.block.y;
 };
-void updateplayerposition(Player& player, int& xdir, int& ydir) {
+void addblock(Player& player) { player.segments.insert(player.segments.begin(), player.block); }
+void removeblock(Player& player) {
+    if (!player.segments.empty()) player.segments.pop_back();
+};
+void updateplayerposition(Player& player) {
     int speed = player.block.w;
     auto& x   = player.block.x;
     auto& y   = player.block.y;
-    x += xdir * speed;
-    y += ydir * speed;
-    player.segments.insert(player.segments.begin(), player.block);
-    player.segments.pop_back();
+    x += player.xdir * speed;
+    y += player.ydir * speed;
+    addblock(player);
 };
+
 void paintplayer(Player& player, SDL_Renderer* render) {
     auto& features = player.features;
     for (auto& segsheet : player.segments) {
@@ -43,8 +47,44 @@ void paintplayers(std::vector<Player>& playerlist, SDL_Renderer* renderer) {
 void updatefoodposition(Food& food) {
     auto& x = food.x;
     auto& y = food.y;
-}
-void checkcollisionwithfood(Food& food, Player& player) { }
+};
+bool collisionwithfood(Food& food, Player& player) {
+    auto dx = (float)std::abs(food.x + food.body.w - player.block.x - player.block.w) / 2;
+    auto dy = (float)std::abs(food.y + food.body.y - player.block.y - player.block.y) / 2;
+    if (dx > 2 || dy > 2) return true;
+    return false;
+};
+bool collisionwithboarder(SDL_Rect& boarder, Player& player) {
+    int& x = player.block.x;
+    int& y = player.block.y;
+    int& w = player.block.w;
+    int& h = player.block.h;
+    if (x < boarder.x) x = boarder.x;
+    if (x + w > boarder.x) x = boarder.x - w;
+    if (y < boarder.y) y = boarder.y;
+    if (y + h > boarder.y) y = boarder.y - h;
+    if (x < boarder.x || x + w > boarder.x || y < boarder.y || y + h > boarder.y) return true;
+    return false;
+};
+void checkcollisionwithfood(Food& food, std::vector<Player>& playerlist) {
+    for (auto& player : playerlist) {
+        if (collisionwithfood(food, player)) {
+            updatefoodposition(food);
+        } else {
+            removeblock(player);
+        }
+    }
+};
+void checkcollisionwithboarder(SDL_Rect& boarder, std::vector<Player>& playerlist) {
+    for (auto& player : playerlist) {
+
+        if (collisionwithboarder(boarder, player)) {
+            addblock(player);
+            removeblock(player);
+        } else {
+        }
+    }
+};
 void paintfood(Food& food, SDL_Renderer* renderer) { };
 void keyboard(int* xdir, int* ydir, SDL_Event e) {
 
@@ -440,20 +480,20 @@ int main() {
     // 创建窗口、渲染器（renderer/suface/texture）、事件队列、蛇和食物、地图和控制器等事物
 
     // Create a window
-    SDL_Window* win1 = SDL_CreateWindow("SwallowAndEscape", SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED, 1920, 1080,
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
+    auto win1 = std::unique_ptr<SDL_Window>(SDL_CreateWindow("SwallowAndEscape",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1920, 1080,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL));
     if (win1 == nullptr) {
         std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
         return 1;
     }
     int ww, wh;
-    SDL_GetWindowSize(win1, &ww, &wh);
+    SDL_GetWindowSize(win1.get(), &ww, &wh);
 
     // create the renderer for the window
 
-    SDL_Renderer* renderer01 =
-        SDL_CreateRenderer(win1, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    auto renderer01 = std::unique_ptr<SDL_Renderer>(
+        SDL_CreateRenderer(win1.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC));
     if (renderer01 == nullptr) {
         std::cerr << "SDL_CreateRenderer Error:" << SDL_GetError() << std::endl;
     }
@@ -499,13 +539,12 @@ int main() {
     playerlist.insert(playerlist.end(), p0);
 
     // create food
-    Food food;
-    SDL_Surface* foodsuf = IMG_Load("assets/food.png");
+    Food food(15, 15);
+    auto foodsuf = std::unique_ptr<SDL_Surface>(IMG_Load("assets/food.png"));
 
-    SDL_Texture* foodtex = SDL_CreateTextureFromSurface(renderer01, foodsuf);
-    food.texture.reset(foodtex);
-
-    SDL_FreeSurface(foodsuf);
+    auto foodtex =
+        std::unique_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(renderer01.get(), foodsuf.get()));
+    food.texture.reset(foodtex.get());
 
     // options
     bool quit      = false;
@@ -518,18 +557,22 @@ int main() {
         }
 
         // paint the map
-        SDL_SetRenderDrawColor(renderer01, 165, 222, 229, 255);
-        SDL_RenderClear(renderer01);
+        SDL_SetRenderDrawColor(renderer01.get(), 165, 222, 229, 255);
+        SDL_RenderClear(renderer01.get());
 
-        SDL_SetRenderDrawColor(renderer01, 254, 253, 202, 200);
-        SDL_RenderFillRect(renderer01, &map1);
+        SDL_SetRenderDrawColor(renderer01.get(), 254, 253, 202, 200);
+        SDL_RenderFillRect(renderer01.get(), &map1);
 
-        SDL_SetRenderDrawColor(renderer01, 224, 249, 181, 255);
-        SDL_RenderFillRect(renderer01, &map2);
-        // paint the players and food
-        updatefoodposition(food);
+        SDL_SetRenderDrawColor(renderer01.get(), 224, 249, 181, 255);
+        SDL_RenderFillRect(renderer01.get(), &map2);
+        // update players'positions
+        updateplayerposition(p0);
+        updateplayerposition(p1);
         updatecposition(cp, food);
-        paintplayers(playerlist, renderer01);
-        paintfood(food, renderer01);
+        checkcollisionwithfood(food, playerlist);
+        checkcollisionwithboarder(map2, playerlist);
+        // update players'outlooks
+        paintplayers(playerlist, renderer01.get());
+        paintfood(food, renderer01.get());
     };
 }
