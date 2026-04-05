@@ -44,14 +44,35 @@ void paintplayers(std::vector<Player>& playerlist, SDL_Renderer* renderer) {
         }
     }
 };
-void updatefoodposition(Food& food) {
+
+auto decode(uint32_t code) {
+    uint16_t x = code >> 16;
+    uint16_t y = code & 0xFFFF;
+    auto dx    = (float)x / 10000;
+    auto dy    = (float)y / 10000;
+    return std::tuple { dx, dy };
+};
+auto requestfoodposition(int fd, sockaddr* addr, socklen_t len) {
+    static int beat = 0;
+    ++beat;
+    uint32_t code { 0 };
+    auto* cptr = &code;
+    auto cplen = sizeof(cptr);
+    int n      = recvfrom(fd, cptr, cplen, 0, (sockaddr*)&addr, &len);
+    std::cout << beat << ".request for foodposition.\n" << std::flush;
+    return decode(code);
+};
+void updatefoodposition(Food& food, Client& client, SDL_Rect& map) {
     auto& x = food.x;
     auto& y = food.y;
+    auto c  = requestfoodposition(client.fd, client.addr, client.len);
+    x       = map.x + map.w * std::get<0>(c);
+    y       = map.y + map.h * std::get<1>(c);
 };
 bool collisionwithfood(Food& food, Player& player) {
     auto dx = (float)std::abs(food.x + food.body.w - player.block.x - player.block.w) / 2;
     auto dy = (float)std::abs(food.y + food.body.y - player.block.y - player.block.y) / 2;
-    if (dx > 2 || dy > 2) return true;
+    if (dx < 2 || dy < 2) return true;
     return false;
 };
 bool collisionwithboarder(SDL_Rect& boarder, Player& player) {
@@ -60,16 +81,19 @@ bool collisionwithboarder(SDL_Rect& boarder, Player& player) {
     int& w = player.block.w;
     int& h = player.block.h;
     if (x < boarder.x) x = boarder.x;
-    if (x + w > boarder.x) x = boarder.x - w;
+    if (x + w > boarder.x + boarder.w) x = boarder.x + boarder.w - w;
     if (y < boarder.y) y = boarder.y;
-    if (y + h > boarder.y) y = boarder.y - h;
-    if (x < boarder.x || x + w > boarder.x || y < boarder.y || y + h > boarder.y) return true;
+    if (y + h > boarder.y + boarder.h) y = boarder.y + boarder.h - h;
+    if (x < boarder.x || x + w > boarder.x + boarder.w || y < boarder.y
+        || y + h > boarder.y + boarder.h)
+        return true;
     return false;
 };
-void checkcollisionwithfood(Food& food, std::vector<Player>& playerlist) {
+void checkcollisionwithfood(
+    Food& food, Client& client, SDL_Rect& map, std::vector<Player>& playerlist) {
     for (auto& player : playerlist) {
         if (collisionwithfood(food, player)) {
-            updatefoodposition(food);
+            updatefoodposition(food, client, map);
         } else {
             removeblock(player);
         }
@@ -86,33 +110,33 @@ void checkcollisionwithboarder(SDL_Rect& boarder, std::vector<Player>& playerlis
     }
 };
 void paintfood(Food& food, SDL_Renderer* renderer) { };
-void keyboard(int* xdir, int* ydir, SDL_Event e) {
+void keyboard(int& xdir, int& ydir, SDL_Event e) {
 
     switch (e.key.keysym.scancode) {
 
     case SDL_SCANCODE_Q: {
-        *xdir = 0, *ydir = 0;
+        xdir = 0, ydir = 0;
         break;
     }
 
     case SDL_SCANCODE_W:
     case SDL_SCANCODE_UP:
-        *ydir = -1, *xdir = 0;
+        ydir = -1, xdir = 0;
         break;
 
     case SDL_SCANCODE_S:
     case SDL_SCANCODE_DOWN:
-        *ydir = 1, *xdir = 0;
+        ydir = 1, xdir = 0;
         break;
 
     case SDL_SCANCODE_A:
     case SDL_SCANCODE_LEFT:
-        *xdir = -1, *ydir = 0;
+        xdir = -1, ydir = 0;
         break;
 
     case SDL_SCANCODE_D:
     case SDL_SCANCODE_RIGHT:
-        *xdir = 1, *ydir = 0;
+        xdir = 1, ydir = 0;
         break;
 
     default:
@@ -298,7 +322,7 @@ int copy() {
             }
 
             case SDL_KEYDOWN: {
-                keyboard(&pdir, &ndir, e);
+                keyboard(pdir, ndir, e);
                 break;
             }
 
@@ -480,9 +504,12 @@ int main() {
     // 创建窗口、渲染器（renderer/suface/texture）、事件队列、蛇和食物、地图和控制器等事物
 
     // Create a window
-    auto win1 = std::unique_ptr<SDL_Window>(SDL_CreateWindow("SwallowAndEscape",
+
+    auto win1 = std::unique_ptr<SDL_Window, SDLDeleter<SDL_Window>>(SDL_CreateWindow("SwallowAndEsc"
+                                                                                     "ape",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1920, 1080,
         SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL));
+
     if (win1 == nullptr) {
         std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
         return 1;
@@ -492,7 +519,7 @@ int main() {
 
     // create the renderer for the window
 
-    auto renderer01 = std::unique_ptr<SDL_Renderer>(
+    auto renderer01 = std::unique_ptr<SDL_Renderer, SDLDeleter<SDL_Renderer>>(
         SDL_CreateRenderer(win1.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC));
     if (renderer01 == nullptr) {
         std::cerr << "SDL_CreateRenderer Error:" << SDL_GetError() << std::endl;
@@ -534,26 +561,69 @@ int main() {
     //  create players
 
     std::vector<Player> playerlist { };
-    Player p0(ww / 2, wh / 2, 15, 15), cp(ww / 2, wh / 2, 15, 15), p1(ww / 2, wh / 2, 15, 15);
-    playerlist.insert(playerlist.end(), cp);
-    playerlist.insert(playerlist.end(), p0);
+    Player lp(400, 400, 15, 15), ap(ww / 2, wh / 2, 15, 15), rp(ww / 2, wh / 2, 15, 15);
+    playerlist.insert(playerlist.end(), std::move(ap));
+    playerlist.insert(playerlist.end(), std::move(lp));
+    auto& cp = playerlist[0];
+    auto& p0 = playerlist[1];
 
     // create food
-    Food food(15, 15);
+    Food food(ww / 2, wh / 2, 15, 15);
     auto foodsuf = std::unique_ptr<SDL_Surface>(IMG_Load("assets/food.png"));
 
-    auto foodtex =
-        std::unique_ptr<SDL_Texture>(SDL_CreateTextureFromSurface(renderer01.get(), foodsuf.get()));
+    auto foodtex = std::unique_ptr<SDL_Texture, SDLDeleter<SDL_Texture>>(
+        SDL_CreateTextureFromSurface(renderer01.get(), foodsuf.get()));
     food.texture.reset(foodtex.get());
 
     // options
     bool quit      = false;
     bool newplayer = false;
     SDL_Event e;
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    sockaddr_in addr { };
+    socklen_t len        = sizeof(addr);
+    addr.sin_family      = AF_INET;
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_port        = htons(9000);
+    Client client { fd, (sockaddr*)&addr, len };
     // gameloop
     while (!quit) {
         while (SDL_PollEvent(&e)) {
-            switch (e.type) { }
+            switch (e.type) {
+            case SDL_QUIT: {
+                quit = true;
+                break;
+            }
+
+            case SDL_KEYDOWN: {
+                keyboard(p0.xdir, p0.ydir, e);
+                break;
+            }
+
+            case (SDL_CONTROLLERBUTTONDOWN): {
+                pad(p0.xdir, p0.ydir, e);
+                break;
+            }
+            case SDL_CONTROLLERDEVICEADDED: {
+                if (controller == nullptr) {
+                    controller = SDL_GameControllerOpen(e.cdevice.which);
+                    controlleropencheck(controller);
+                    controllerrumbleopencheck(controller);
+                    std::cout << "controller connected" << std::endl;
+                }
+                break;
+            }
+            case SDL_CONTROLLERDEVICEREMOVED: {
+                if (controller != nullptr
+                    && e.cdevice.which
+                        == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller))) {
+                    SDL_GameControllerClose(controller);
+                    controller = nullptr;
+                    std::cout << "controller removed" << std::endl;
+                }
+                break;
+            }
+            }
         }
 
         // paint the map
@@ -566,13 +636,16 @@ int main() {
         SDL_SetRenderDrawColor(renderer01.get(), 224, 249, 181, 255);
         SDL_RenderFillRect(renderer01.get(), &map2);
         // update players'positions
+
         updateplayerposition(p0);
-        updateplayerposition(p1);
+        updateplayerposition(rp);
         updatecposition(cp, food);
-        checkcollisionwithfood(food, playerlist);
+        checkcollisionwithfood(food, client, map2, playerlist);
         checkcollisionwithboarder(map2, playerlist);
         // update players'outlooks
         paintplayers(playerlist, renderer01.get());
         paintfood(food, renderer01.get());
+        SDL_RenderPresent(renderer01.get());
+        SDL_Delay(1000 / 60);
     };
 }

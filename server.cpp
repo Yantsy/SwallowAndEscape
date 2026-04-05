@@ -1,4 +1,3 @@
-#pragma once
 #define SPIP { "8.136.30.21" }
 #include <arpa/inet.h>
 #include <cstring>
@@ -8,6 +7,7 @@
 #include <memory>
 #include <netinet/in.h>
 #include <queue>
+#include <random>
 #include <sys/socket.h>
 #include <unistd.h>
 struct PlayerState { };
@@ -60,22 +60,38 @@ public:
         }
     };
 };
+
+auto encode(float x, float y) {
+    auto a     = static_cast<uint16_t>(x * 10000);
+    auto b     = static_cast<uint16_t>(y * 10000);
+    uint32_t c = a << 16;
+    c |= b;
+    return c;
+};
+auto randnum() {
+    std::mt19937 mt(std::random_device { }());
+    auto x = std::uniform_real_distribution<float>(0.0f, 1.0f)(mt);
+    auto y = std::uniform_real_distribution<float>(0.0f, 1.0f)(mt);
+    return encode(x, y);
+};
 int main() {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    int beat { 0 };
     sockaddr_in addr { }; // 创建专用地址结构体
     addr.sin_family      = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port        = 9000;
+    auto addrlen         = sizeof(addr);
     if (bind(fd, (sockaddr*)&addr, sizeof(addr)) == -1) {
         close(fd);
         std::cerr << "Binding to" << addr.sin_addr.s_addr << ":" << addr.sin_port << " Failed\n";
-    }
-
-    NetObject server;
+    };
     while (true) {
-        auto buf = std::make_unique<int>;
-        PacketType type;
-        Player player;
-        server.react(type, player);
+        ++beat;
+        auto foodposition = randnum();
+        auto* fp          = &foodposition;
+        auto fplen        = sizeof(foodposition);
+        int n             = sendto(fd, fp, fplen, 0, (sockaddr*)&addr, addrlen);
+        std::cout << beat << ".send food position sucessfully.\n" << std::flush;
     };
 }
