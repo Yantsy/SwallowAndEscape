@@ -13,6 +13,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <iostream>
 #include <map>
 #include <memory>

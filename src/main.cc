@@ -54,25 +54,33 @@ auto decode(uint32_t code) {
 };
 auto requestfoodposition(int fd, sockaddr* addr, socklen_t len) {
     static int beat = 0;
-    ++beat;
+    //++beat;
+    char buf[64];
+    snprintf(buf, sizeof(buf), "hello #%d", beat++);
+    sendto(fd, buf, strlen(buf), 0, addr, len);
+    std::cout << "sent: " << buf << "\n";
+    /*
     uint32_t code { 0 };
     auto* cptr = &code;
-    auto cplen = sizeof(cptr);
-    int n      = recvfrom(fd, cptr, cplen, 0, (sockaddr*)&addr, &len);
+    auto cplen = sizeof(code);
+    int n      = recvfrom(fd, cptr, cplen, 0, addr, &len);
     std::cout << beat << ".request for foodposition.\n" << std::flush;
-    return decode(code);
+    return decode(code);*/
+};
+auto checkfoodposition(int fd, sockaddr* addr, socklen_t len) {
+
 };
 void updatefoodposition(Food& food, Client& client, SDL_Rect& map) {
-    auto& x = food.x;
-    auto& y = food.y;
-    auto c  = requestfoodposition(client.fd, client.addr, client.len);
-    x       = map.x + map.w * std::get<0>(c);
-    y       = map.y + map.h * std::get<1>(c);
+    auto& x = food.body.x;
+    auto& y = food.body.y;
+    requestfoodposition(client.fd, client.addr, client.len);
+    // x = map.x + map.w * std::get<0>(c);
+    // y = map.y + map.h * std::get<1>(c);
 };
 bool collisionwithfood(Food& food, Player& player) {
-    auto dx = (float)std::abs(food.x + food.body.w - player.block.x - player.block.w) / 2;
-    auto dy = (float)std::abs(food.y + food.body.y - player.block.y - player.block.y) / 2;
-    if (dx < 2 || dy < 2) return true;
+    auto dx = (float)std::abs(food.body.x + food.body.w - player.block.x - player.block.w) / 2;
+    auto dy = (float)std::abs(food.body.y + food.body.h - player.block.y - player.block.h) / 2;
+    if (dx < 5 && dy < 5) return true;
     return false;
 };
 bool collisionwithboarder(SDL_Rect& boarder, Player& player) {
@@ -109,7 +117,9 @@ void checkcollisionwithboarder(SDL_Rect& boarder, std::vector<Player>& playerlis
         }
     }
 };
-void paintfood(Food& food, SDL_Renderer* renderer) { };
+void paintfood(Food& food, SDL_Renderer* renderer) {
+    SDL_RenderCopy(renderer, food.texture.get(), NULL, &food.body);
+};
 void keyboard(int& xdir, int& ydir, SDL_Event e) {
 
     switch (e.key.keysym.scancode) {
@@ -547,7 +557,7 @@ int main() {
     if (bgm == nullptr) {
         std::cerr << "Mix_LoadMUS Error: " << Mix_GetError() << std::endl;
     }
-    Mix_PlayMusic(bgm, -1);
+    // Mix_PlayMusic(bgm, -1);
 
     // create controler
     //  gamecontroler
@@ -561,7 +571,7 @@ int main() {
     //  create players
 
     std::vector<Player> playerlist { };
-    Player lp(400, 400, 15, 15), ap(ww / 2, wh / 2, 15, 15), rp(ww / 2, wh / 2, 15, 15);
+    Player lp(350, 400, 15, 15), ap(ww / 2, wh / 2, 15, 15), rp(ww / 2, wh / 2, 15, 15);
     playerlist.insert(playerlist.end(), std::move(ap));
     playerlist.insert(playerlist.end(), std::move(lp));
     auto& cp = playerlist[0];
@@ -579,13 +589,19 @@ int main() {
     bool quit      = false;
     bool newplayer = false;
     SDL_Event e;
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    int fd    = socket(AF_INET, SOCK_DGRAM, 0);
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     sockaddr_in addr { };
     socklen_t len        = sizeof(addr);
     addr.sin_family      = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port        = htons(9000);
     Client client { fd, (sockaddr*)&addr, len };
+
+    uint32_t code { 0 };
+    auto* cptr = &code;
+    auto cplen = sizeof(code);
     // gameloop
     while (!quit) {
         while (SDL_PollEvent(&e)) {
@@ -637,6 +653,22 @@ int main() {
         SDL_RenderFillRect(renderer01.get(), &map2);
         // update players'positions
 
+        int n = recvfrom(fd, cptr, cplen, 0, (sockaddr*)&addr, &len);
+        if (n > 0) {
+            auto c  = decode(code);
+            auto& x = food.body.x;
+            auto& y = food.body.y;
+            x       = map2.x + map2.w * std::get<0>(c);
+            y       = map2.y + map2.h * std::get<1>(c);
+        } else if (n == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+
+            } else {
+                // 真正的错误
+                perror("recvfrom");
+                break;
+            }
+        };
         updateplayerposition(p0);
         updateplayerposition(rp);
         updatecposition(cp, food);

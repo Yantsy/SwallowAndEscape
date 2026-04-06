@@ -80,18 +80,29 @@ int main() {
     sockaddr_in addr { }; // 创建专用地址结构体
     addr.sin_family      = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port        = 9000;
-    auto addrlen         = sizeof(addr);
+    addr.sin_port        = htons(9000);
+    socklen_t addrlen    = sizeof(addr);
+
+    sockaddr_in from { };
+    socklen_t fromlen = sizeof(from);
+    char buf[1024];
     if (bind(fd, (sockaddr*)&addr, sizeof(addr)) == -1) {
         close(fd);
         std::cerr << "Binding to" << addr.sin_addr.s_addr << ":" << addr.sin_port << " Failed\n";
+    } else {
+        std::cout << "server listening on :9000\n";
     };
     while (true) {
         ++beat;
         auto foodposition = randnum();
         auto* fp          = &foodposition;
         auto fplen        = sizeof(foodposition);
-        int n             = sendto(fd, fp, fplen, 0, (sockaddr*)&addr, addrlen);
+        int n             = recvfrom(fd, buf, sizeof(buf) - 1, 0, (sockaddr*)&from, &fromlen);
+        buf[n]            = '\0';
+        std::cout << "recv from " << inet_ntoa(from.sin_addr) << ":" << ntohs(from.sin_port)
+                  << " -> " << buf << "\n";
+        int m = sendto(fd, fp, fplen, 0, (sockaddr*)&from, fromlen);
         std::cout << beat << ".send food position sucessfully.\n" << std::flush;
+        sleep(1);
     };
 }
