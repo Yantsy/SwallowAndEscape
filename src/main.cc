@@ -55,10 +55,8 @@ auto decode(uint32_t code) {
 auto requestfoodposition(int fd, sockaddr* addr, socklen_t len) {
     static int beat = 0;
     //++beat;
-    char buf[64];
-    snprintf(buf, sizeof(buf), "hello #%d", beat++);
-    sendto(fd, buf, strlen(buf), 0, addr, len);
-    std::cout << "sent: " << buf << "\n";
+    auto packet = EAT;
+    sendto(fd, &packet, sizeof(packet), 0, addr, len);
     /*
     uint32_t code { 0 };
     auto* cptr = &code;
@@ -598,7 +596,8 @@ int main() {
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port        = htons(9000);
     Client client { fd, (sockaddr*)&addr, len };
-
+    auto packet = JOIN;
+    int n       = sendto(fd, &packet, sizeof(packet), 0, client.addr, client.len);
     uint32_t code { 0 };
     auto* cptr = &code;
     auto cplen = sizeof(code);

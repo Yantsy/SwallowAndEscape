@@ -82,7 +82,7 @@ struct Client {
     sockaddr* addr { };
     socklen_t len;
 };
-enum PacketType : int { JOIN = 1, SEND = 2, RETURN = 3, PAUSE = 0, QUIT = -1 };
+enum PacketType : uint8_t { JOIN = 1, EAT = 2, PAUSE = 3, QUIT = 4 };
 
 class NetObject {
 
@@ -103,12 +103,10 @@ public:
             join();
             break;
         }
-        case SEND: {
+        case EAT: {
             send();
         }
-        case RETURN: {
-            ret();
-        }
+
         case PAUSE: {
             pause();
         }
